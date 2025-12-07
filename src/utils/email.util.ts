@@ -50,7 +50,7 @@ export const sendEmail = async (options: MailOptions) => {
 
   try {
     const mailOptionsWithFrom = {
-      from: `Kech.ai <${config.emailFrom}>`,
+      from: `Prompt Pal <${config.emailFrom}>`,
       to: options.to,
       subject: options.subject,
       text: options.text,

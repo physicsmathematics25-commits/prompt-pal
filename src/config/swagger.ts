@@ -45,6 +45,10 @@ const swaggerDefinition = {
       name: 'Admin',
       description: 'Admin endpoints for platform management',
     },
+    {
+      name: 'Prompts',
+      description: 'Prompt creation, management, and discovery endpoints',
+    },
   ],
 };
 

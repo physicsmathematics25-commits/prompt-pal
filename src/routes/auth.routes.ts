@@ -31,7 +31,7 @@ const router = Router();
  *   post:
  *     summary: Register a new user
  *     tags: [Authentication]
- *     description: Create a new user account with email and password. A verification email will be sent.
+ *     description: Create a new user account with email and password. A verification email will be sent. Phone number is optional.
  *     requestBody:
  *       required: true
  *       content:
@@ -65,7 +65,7 @@ const router = Router();
  *               phoneNumber:
  *                 type: string
  *                 pattern: "^[0-9]{7,15}$"
- *                 description: Phone number with 7-15 digits only (optional)
+ *                 description: Optional phone number with 7-15 digits only. Can be omitted.
  *                 example: "0911234567"
  *               password:
  *                 type: string

@@ -15,6 +15,7 @@ import { globalErrorHandler } from './middleware/error.middleware.js';
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import promptRoutes from './routes/prompt.routes.js';
 
 const app: Express = express();
 
@@ -59,6 +60,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/user', userRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/prompts', promptRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({

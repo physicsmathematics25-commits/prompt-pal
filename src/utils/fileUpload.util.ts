@@ -8,9 +8,9 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req: Request, file: Express.Multer.File) => {
     const userId = req.user?.id || 'misc';
-    const folder = `kech/cars/${userId}`;
+    const folder = `prompt-pal/users/${userId}`;
 
-    const filename = `car-${userId}-${Date.now()}-${Math.round(
+    const filename = `user-${userId}-${Date.now()}-${Math.round(
       Math.random() * 1e9,
     )}`;
 

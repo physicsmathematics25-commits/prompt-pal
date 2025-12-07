@@ -32,7 +32,7 @@
  *           example: john.doe@example.com
  *         phoneNumber:
  *           type: string
- *           description: User's phone number
+ *           description: User's phone number (optional)
  *           example: "+251911234567"
  *         role:
  *           type: string
