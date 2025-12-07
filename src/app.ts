@@ -1,0 +1,76 @@
+import express, { Express, Request, Response, NextFunction } from 'express';
+import morgan from 'morgan';
+import helmet from 'helmet';
+import cors from 'cors';
+import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
+import swaggerUi from 'swagger-ui-express';
+
+import config from './config/env.config.js';
+import logger from './config/logger.config.js';
+import swaggerSpec from './config/swagger.js';
+import AppError from './utils/appError.util.js';
+import { globalErrorHandler } from './middleware/error.middleware.js';
+
+import authRoutes from './routes/auth.routes.js';
+import userRoutes from './routes/user.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+
+const app: Express = express();
+
+app.enable('trust proxy');
+
+app.use(helmet());
+
+const morganStream = {
+  write: (message: string) => logger.debug(message.trim()),
+};
+
+if (!config.isProduction) {
+  app.use(morgan('dev', { stream: morganStream }));
+} else {
+  app.use(morgan('short', { stream: morganStream }));
+}
+
+app.use(
+  cors({
+    origin: config.corsOrigin,
+    credentials: true,
+  }),
+);
+
+app.use(cookieParser());
+
+const limiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests from this IP, please try again after an hour.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// app.use('/api', limiter);
+
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/user', userRoutes);
+app.use('/api/v1/admin', adminRoutes);
+
+app.get('/', (req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Prompt Pal Backend API is running!',
+  });
+});
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+});
+
+app.use(globalErrorHandler);
+
+export default app;
