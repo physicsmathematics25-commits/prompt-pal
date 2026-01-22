@@ -212,3 +212,103 @@ export const toggleLike = async (promptId: string, userId: string) => {
   return prompt;
 };
 
+export const getUserPrompts = async (
+  userId: string,
+  query: FeedQueryParams,
+) => {
+  const { page = 1, limit = 20, tag, aiModel, search } = query;
+
+  const filter: any = {
+    user: userId,
+  };
+
+  if (tag) {
+    filter.tags = { $in: [tag] };
+  }
+
+  if (aiModel) {
+    filter.aiModel = { $regex: aiModel, $options: 'i' };
+  }
+
+  if (search) {
+    filter.$text = { $search: search };
+  }
+
+  const skip = (page - 1) * limit;
+
+  let queryBuilder = Prompt.find(filter)
+    .populate({
+      path: 'user',
+      select: 'firstName lastName email profileImage',
+    })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  if (search) {
+    queryBuilder = queryBuilder.sort({ score: { $meta: 'textScore' }, createdAt: -1 });
+  }
+
+  const prompts = await queryBuilder;
+
+  const total = await Prompt.countDocuments(filter);
+
+  return {
+    prompts,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+    limit,
+  };
+};
+
+export const getUserFavorites = async (
+  userId: string,
+  query: FeedQueryParams,
+) => {
+  const { page = 1, limit = 20, tag, aiModel, search } = query;
+
+  const filter: any = {
+    likes: userId,
+  };
+
+  if (tag) {
+    filter.tags = { $in: [tag] };
+  }
+
+  if (aiModel) {
+    filter.aiModel = { $regex: aiModel, $options: 'i' };
+  }
+
+  if (search) {
+    filter.$text = { $search: search };
+  }
+
+  const skip = (page - 1) * limit;
+
+  let queryBuilder = Prompt.find(filter)
+    .populate({
+      path: 'user',
+      select: 'firstName lastName email profileImage',
+    })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  if (search) {
+    queryBuilder = queryBuilder.sort({ score: { $meta: 'textScore' }, createdAt: -1 });
+  }
+
+  const prompts = await queryBuilder;
+
+  const total = await Prompt.countDocuments(filter);
+
+  return {
+    prompts,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+    limit,
+  };
+};
+

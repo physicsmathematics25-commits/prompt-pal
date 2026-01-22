@@ -90,6 +90,174 @@ router.get('/', validate(feedQuerySchema, 'query'), promptController.getFeed);
 
 /**
  * @swagger
+ * /prompts/my:
+ *   get:
+ *     summary: Get user's own prompts
+ *     tags: [Prompts]
+ *     description: Retrieve a paginated list of prompts created by the authenticated user with optional filtering by tag, AI model, and text search.
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
+ *         example: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Number of items per page (max 100)
+ *         example: 20
+ *       - in: query
+ *         name: tag
+ *         schema:
+ *           type: string
+ *         description: Filter prompts by tag (optional)
+ *         example: art
+ *       - in: query
+ *         name: aiModel
+ *         schema:
+ *           type: string
+ *         description: Filter prompts by AI model (optional)
+ *         example: GPT-4
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search prompts by title, description, prompt text, or tags (optional)
+ *         example: marketing
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved user's prompts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     prompts:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Prompt'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         total:
+ *                           type: integer
+ *                         page:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *       401:
+ *         description: Unauthorized - valid JWT cookie required
+ */
+router.get(
+  '/my',
+  protect,
+  validate(feedQuerySchema, 'query'),
+  promptController.getUserPrompts,
+);
+
+/**
+ * @swagger
+ * /prompts/favorites:
+ *   get:
+ *     summary: Get user's favorite prompts
+ *     tags: [Prompts]
+ *     description: Retrieve a paginated list of prompts that the authenticated user has liked (favorited) with optional filtering by tag, AI model, and text search.
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
+ *         example: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Number of items per page (max 100)
+ *         example: 20
+ *       - in: query
+ *         name: tag
+ *         schema:
+ *           type: string
+ *         description: Filter prompts by tag (optional)
+ *         example: art
+ *       - in: query
+ *         name: aiModel
+ *         schema:
+ *           type: string
+ *         description: Filter prompts by AI model (optional)
+ *         example: GPT-4
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search prompts by title, description, prompt text, or tags (optional)
+ *         example: marketing
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved user's favorite prompts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     prompts:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Prompt'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         total:
+ *                           type: integer
+ *                         page:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *       401:
+ *         description: Unauthorized - valid JWT cookie required
+ */
+router.get(
+  '/favorites',
+  protect,
+  validate(feedQuerySchema, 'query'),
+  promptController.getUserFavorites,
+);
+
+/**
+ * @swagger
  * /prompts/{id}:
  *   get:
  *     summary: Get prompt by ID

@@ -140,3 +140,51 @@ export const toggleLike = catchAsync(
     });
   },
 );
+
+export const getUserPrompts = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      throw new AppError('You must be logged in to view your prompts.', 401);
+    }
+
+    const query = req.query as unknown as FeedQueryParams;
+    const data = await promptService.getUserPrompts(req.user.id, query);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        prompts: data.prompts,
+        pagination: {
+          total: data.total,
+          page: data.page,
+          totalPages: data.totalPages,
+          limit: data.limit,
+        },
+      },
+    });
+  },
+);
+
+export const getUserFavorites = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      throw new AppError('You must be logged in to view your favorites.', 401);
+    }
+
+    const query = req.query as unknown as FeedQueryParams;
+    const data = await promptService.getUserFavorites(req.user.id, query);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        prompts: data.prompts,
+        pagination: {
+          total: data.total,
+          page: data.page,
+          totalPages: data.totalPages,
+          limit: data.limit,
+        },
+      },
+    });
+  },
+);
