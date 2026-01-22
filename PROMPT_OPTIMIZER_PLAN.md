@@ -504,7 +504,7 @@ User Input (Human Language Prompt)
 - `calculateQualityScores(original, optimized)`: Score calculation
 
 **AI Service**: Google Gemini Pro
-- **Model**: `gemini-pro` (free tier: 1,500 requests/day, 15 requests/minute)
+- **Model**: `gemini-1.5-flash` (free tier: 1,500 requests/day, 15 requests/minute)
 - **Why Gemini**: Excellent instruction following, great at understanding context, perfect for prompt optimization tasks
 - **API**: Google Generative AI SDK (`@google/generative-ai`)
 - **Fallback Option**: Groq (if rate limits are hit - 14,400 requests/day)
@@ -792,7 +792,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
 const model = genAI.getGenerativeModel({ 
-  model: 'gemini-pro',
+  model: 'gemini-1.5-flash',
   generationConfig: {
     temperature: 0.7,
     maxOutputTokens: 2000,
@@ -983,7 +983,7 @@ npm install @google/generative-ai
 ```env
 # AI Service Configuration (Google Gemini - Free Tier)
 GOOGLE_AI_API_KEY=your_google_ai_api_key_here
-GEMINI_MODEL=gemini-pro
+GEMINI_MODEL=gemini-1.5-flash
 OPTIMIZATION_TEMPERATURE=0.7
 OPTIMIZATION_MAX_TOKENS=2000
 

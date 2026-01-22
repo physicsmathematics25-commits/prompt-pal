@@ -108,7 +108,7 @@ const config: AppConfig = {
 
   gemini: {
     apiKey: getEnvVar('GOOGLE_AI_API_KEY', false),
-    model: getEnvVar('GEMINI_MODEL', false, 'gemini-pro'),
+    model: getEnvVar('GEMINI_MODEL', false, 'gemini-1.5-flash'),
     temperature: getEnvVarAsInt('OPTIMIZATION_TEMPERATURE', false, 0.7),
     maxTokens: getEnvVarAsInt('OPTIMIZATION_MAX_TOKENS', false, 2000),
   },

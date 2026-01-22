@@ -23,7 +23,7 @@ export function initializeGemini() {
 
   try {
     genAI = new GoogleGenerativeAI(apiKey);
-    const modelName = process.env.GEMINI_MODEL || 'gemini-pro';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
     const temperature = parseFloat(process.env.OPTIMIZATION_TEMPERATURE || '0.7');
     const maxTokens = parseInt(process.env.OPTIMIZATION_MAX_TOKENS || '2000', 10);
 

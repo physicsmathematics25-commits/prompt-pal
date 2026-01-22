@@ -1118,7 +1118,7 @@ curl -X POST "http://localhost:3000/api/v1/prompt-optimizer/$OPTIMIZATION_ID/fee
 
 ```env
 GOOGLE_AI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-pro
+GEMINI_MODEL=gemini-1.5-flash
 OPTIMIZATION_TEMPERATURE=0.7
 OPTIMIZATION_MAX_TOKENS=2000
 OPTIMIZATION_CACHE_TTL_QUESTIONS=1800  # 30 minutes
