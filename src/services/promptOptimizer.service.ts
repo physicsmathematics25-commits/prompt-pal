@@ -36,10 +36,10 @@ export const quickOptimize = async (
   const { originalPrompt, targetModel, mediaType } = input;
 
   // Analyze the prompt
-  const analysis = analyzePrompt(originalPrompt, mediaType);
+  const analysis = analyzePrompt(originalPrompt as string, mediaType);
 
   // Apply quick fixes (grammar and structure only)
-  let optimizedPrompt = originalPrompt;
+  let optimizedPrompt: string = originalPrompt as string;
 
   // Fix common grammar issues
   if (analysis.grammarFixed) {
@@ -53,7 +53,7 @@ export const quickOptimize = async (
     // Only fix if we see "create image of cat" -> "create an image of a cat"
     optimizedPrompt = optimizedPrompt.replace(
       /\b(create|generate|make)\s+(image|picture|photo)\s+of\s+(cat|dog|bird|animal)\b/gi,
-      (match, verb, img, animal) => {
+      (match: string, verb: string, img: string, animal: string) => {
         return `${verb} an ${img} of a ${animal}`;
       },
     );
@@ -69,7 +69,7 @@ export const quickOptimize = async (
     optimizedPrompt.charAt(0).toUpperCase() + optimizedPrompt.slice(1);
 
   // Calculate quality scores
-  const afterAnalysis = analyzePrompt(optimizedPrompt, mediaType);
+  const afterAnalysis = analyzePrompt(optimizedPrompt as string, mediaType);
   const qualityScore = {
     before: Math.round(
       (analysis.clarityScore +
@@ -138,10 +138,10 @@ export const analyzePromptForQuestions = async (
   const { originalPrompt, targetModel, mediaType } = input;
 
   // Analyze the prompt
-  const analysis = analyzePrompt(originalPrompt, mediaType);
+  const analysis = analyzePrompt(originalPrompt as string, mediaType);
 
   // Generate quick optimized version (fallback)
-  let quickOptimized = originalPrompt;
+  let quickOptimized: string = originalPrompt as string;
   if (analysis.grammarFixed) {
     quickOptimized = quickOptimized.replace(
       /\b(draw|make)\s+me\s+/gi,
@@ -155,14 +155,14 @@ export const analyzePromptForQuestions = async (
   }
 
   // Check cache first
-  const cacheKey = generateQuestionsCacheKey(originalPrompt, mediaType, targetModel);
+  const cacheKey = generateQuestionsCacheKey(originalPrompt as string, mediaType, targetModel as string);
   let questionsData = questionCache.get<any>(cacheKey);
 
   // Generate questions using Gemini (if available) or template
   if (!questionsData) {
     if (isGeminiAvailable()) {
       try {
-        questionsData = await generateQuestions(originalPrompt, mediaType, targetModel);
+        questionsData = await generateQuestions(originalPrompt as string, mediaType, targetModel as string);
         // Cache the questions
         questionCache.set(cacheKey, questionsData);
       } catch (error: any) {
@@ -228,8 +228,8 @@ export const buildPremiumPrompt = async (
   }
 
   // Parse additional details if provided (with media type context)
-  let parsedDetails: any = {};
-  if (additionalDetails && additionalDetails.trim()) {
+  let parsedDetails: Record<string, any> = {};
+  if (additionalDetails && typeof additionalDetails === 'string' && additionalDetails.trim()) {
     if (isGeminiAvailable()) {
       try {
         parsedDetails = await parseFreeFormInput(additionalDetails, mediaType);
@@ -246,11 +246,13 @@ export const buildPremiumPrompt = async (
   let optimizedPrompt: string;
   if (isGeminiAvailable()) {
     try {
+      const userAnswers: Record<string, any> = answers || {};
+      const additionalDetailsStr: string = (additionalDetails && typeof additionalDetails === 'string') ? additionalDetails : '';
       optimizedPrompt = await buildOptimizedPrompt(
-        originalPrompt,
-        answers || {},
-        additionalDetails,
-        targetModel,
+        originalPrompt as string,
+        userAnswers,
+        additionalDetailsStr || undefined,
+        targetModel as string,
       );
     } catch (error: any) {
       logger.error(error, 'Failed to build prompt with Gemini');
@@ -261,11 +263,13 @@ export const buildPremiumPrompt = async (
   }
 
   // Validate intent preservation
+  const userAnswers: Record<string, any> = answers || {};
+  const additionalDetailsStr: string = (additionalDetails && typeof additionalDetails === 'string') ? additionalDetails : '';
   const intentValidation = validateIntentPreservation(
-    originalPrompt,
+    originalPrompt as string,
     optimizedPrompt,
-    answers,
-    additionalDetails,
+    userAnswers,
+    additionalDetailsStr || undefined,
   );
 
   // Log intent preservation violations if any
@@ -281,14 +285,14 @@ export const buildPremiumPrompt = async (
 
   // Calculate comprehensive quality scores
   const comprehensiveScore = calculateComprehensiveQualityScore(
-    originalPrompt,
+    originalPrompt as string,
     optimizedPrompt,
     mediaType,
-    answers,
-    additionalDetails,
+    userAnswers,
+    additionalDetailsStr || undefined,
   );
 
-  const beforeAnalysis = analyzePrompt(originalPrompt, mediaType);
+  const beforeAnalysis = analyzePrompt(originalPrompt as string, mediaType);
   const afterAnalysis = analyzePrompt(optimizedPrompt, mediaType);
 
   const qualityScore = {
@@ -314,8 +318,8 @@ export const buildPremiumPrompt = async (
   optimization.optimizedPrompt = optimizedPrompt;
   optimization.optimizationMode = 'complete';
   optimization.status = 'completed';
-  optimization.userAnswers = answers || {};
-  optimization.additionalDetails = additionalDetails;
+  optimization.userAnswers = userAnswers;
+  optimization.additionalDetails = additionalDetailsStr || undefined;
   optimization.qualityScore = qualityScore;
   optimization.metadata = {
     wordCount: {
