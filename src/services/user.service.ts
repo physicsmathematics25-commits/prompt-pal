@@ -3,11 +3,43 @@ import AppError from '../utils/appError.util.js';
 import { UpdateProfileInput } from '../validation/user.schema.js';
 import { UserRole, UserStatus } from '../types/user.types.js';
 import { GetUsersAdminQuery } from '../validation/admin.validation.js';
+import { cloudinary } from '../utils/cloudinary.util.js';
+import logger from '../config/logger.config.js';
 
-export const updatePrfile = async (
+export const updateProfile = async (
   userId: string,
   payload: UpdateProfileInput,
+  oldProfileImageUrl?: string,
 ) => {
+  // If updating profile image, delete old image from Cloudinary
+  if (payload.profileImage && oldProfileImageUrl) {
+    // Don't delete if it's the default image
+    const DEFAULT_PROFILE_IMAGE =
+      'https://res.cloudinary.com/dxhkryxzk/image/upload/v1755980278/avatar2_bkwawy.png';
+    
+    if (oldProfileImageUrl !== DEFAULT_PROFILE_IMAGE) {
+      try {
+        const url = oldProfileImageUrl;
+        const match = url.match(/\/upload\/(?:v\d+\/)?(.+)/);
+        
+        if (match && match[1]) {
+          const publicIdWithFolder = match[1].replace(/\.(jpg|jpeg|png|webp|gif)$/i, '');
+          
+          if (publicIdWithFolder) {
+            await cloudinary.api.delete_resources([publicIdWithFolder]);
+            logger.info(`[Cloudinary]: Deleted old profile image ${publicIdWithFolder} for user ${userId}`);
+          }
+        }
+      } catch (error: any) {
+        logger.error(
+          error,
+          `[Cloudinary]: Failed to delete old profile image for user ${userId}`,
+        );
+        // Don't throw error - continue with update even if deletion fails
+      }
+    }
+  }
+
   const user = await User.findByIdAndUpdate(
     userId,
     { $set: payload },

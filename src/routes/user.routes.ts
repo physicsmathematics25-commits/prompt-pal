@@ -6,6 +6,7 @@ import { userProfile,
  } from "../controllers/user.controller.js";
  import { updateMeSchema } from '../validation/user.schema.js';
  import { validate } from '../middleware/validate.middleware.js';
+ import { upload } from '../utils/fileUpload.util.js';
 
 
 const router = Router();
@@ -46,13 +47,13 @@ router.get('/userProfile', protect, userProfile);
  *   patch:
  *     summary: Update my profile
  *     tags: [Users]
- *     description: Update the authenticated user's profile information. ALL fields are optional - only send the fields you want to update. Names are automatically sanitized and capitalized. Sensitive fields (password, role, status, etc.) are automatically filtered out if sent.
+ *     description: Update the authenticated user's profile information. ALL fields are optional - only send the fields you want to update. Names are automatically sanitized and capitalized. Profile image can be uploaded as a file. Sensitive fields (password, role, status, etc.) are automatically filtered out if sent. Old profile images are automatically deleted from Cloudinary when a new one is uploaded.
  *     security:
  *       - cookieAuth: []
  *     requestBody:
  *       required: false
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -73,6 +74,10 @@ router.get('/userProfile', protect, userProfile);
  *                 pattern: '^[0-9]{7,15}$'
  *                 description: Phone number with 7-15 digits only, no special characters (optional)
  *                 example: "251911234567"
+ *               profileImage:
+ *                 type: string
+ *                 format: binary
+ *                 description: Profile image file (optional, accepts jpg, jpeg, png, webp, max 5MB)
  *     responses:
  *       200:
  *         description: Profile updated successfully with the updated user object
@@ -90,10 +95,10 @@ router.get('/userProfile', protect, userProfile);
  *                     user:
  *                       $ref: '#/components/schemas/User'
  *       400:
- *         description: Bad request - validation error (invalid phone format, name too short/long, etc.)
+ *         description: Bad request - validation error (invalid phone format, name too short/long, invalid image format, etc.)
  *       401:
  *         description: Unauthorized - valid JWT cookie required
  */
-router.patch('/updateProfile', protect, validate(updateMeSchema), updateProfileHandler);
+router.patch('/updateProfile', protect, upload.single('profileImage'), validate(updateMeSchema), updateProfileHandler);
 
 export default router;

@@ -33,10 +33,13 @@ export const updateMeSchema = z
       .trim()
       .regex(/^[0-9]{7,15}$/, 'Phone number must contain 7-15 digits')
       .optional(),
-
-    //  profileImage: z.string().url().optional(),
   })
   .strict();
+
+// Extended type for UpdateProfileInput that includes profileImage (from file upload)
+export type UpdateProfileInput = z.infer<typeof updateMeSchema> & {
+  profileImage?: string;
+};
 
 const objectIdSchema = z.string().refine(
   (val) => {
@@ -50,5 +53,3 @@ export const getUserSchema = z.object({
 });
 
 export type GetUserParams = z.infer<typeof getUserSchema>;
-
-export type UpdateProfileInput = z.infer<typeof updateMeSchema>;

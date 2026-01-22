@@ -26,6 +26,7 @@ export const updateProfileHandler = catchAsync(
       'phoneOtpExpires',
       'passwordResetToken',
       'passwordResetExpires',
+      'profileImage', // Handle via file upload, not body
     ];
     forbidden.forEach((f) => {
       if ((req.body as any)[f] !== undefined) delete (req.body as any)[f];
@@ -35,7 +36,22 @@ export const updateProfileHandler = catchAsync(
       throw new AppError('User not found', 401);
     }
 
-    const user = await userService.updatePrfile(req.user.id, req.body);
+    // Get old profile image URL before update
+    const oldProfileImageUrl = req.user.profileImage;
+
+    // Prepare update payload
+    const updatePayload: UpdateProfileInput = { ...req.body };
+
+    // Handle file upload - if file is uploaded, use its URL
+    if (req.file) {
+      updatePayload.profileImage = req.file.path;
+    }
+
+    const user = await userService.updateProfile(
+      req.user.id,
+      updatePayload,
+      oldProfileImageUrl,
+    );
 
     res.status(200).json({
       status: 'success',
