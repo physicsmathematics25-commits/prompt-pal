@@ -401,6 +401,124 @@ function getModelSpecificGuidance(
 - Consider output format and quality requirements`;
 }
 
+/**
+ * Quick optimize prompt using AI following standard prompt engineering best practices
+ * Returns optimized prompt with validation and improvements list
+ */
+export interface QuickOptimizeResult {
+  optimizedPrompt: string;
+  isValid: boolean;
+  validationMessage?: string;
+  improvements: string[];
+  qualityScore: number;
+}
+
+export async function quickOptimizeWithAI(
+  originalPrompt: string,
+  targetModel: string,
+  mediaType: 'text' | 'image' | 'video' | 'audio',
+): Promise<QuickOptimizeResult> {
+  const modelGuidance = getModelSpecificGuidance(targetModel, mediaType);
+
+  const systemPrompt = `You are a prompt optimization expert. Optimize this prompt following standard prompt engineering best practices.
+
+ORIGINAL PROMPT: "${originalPrompt}"
+TARGET MODEL: ${targetModel}
+MEDIA TYPE: ${mediaType}
+
+${modelGuidance}
+
+OPTIMIZATION RULES (CRITICAL - Apply ALL of these):
+1. Fix ALL grammar and spelling errors
+2. Remove unnecessary filler words ("very", "really", "quite", "actually", "just", "kind of", "sort of")
+3. Remove redundancy and repetitive phrases
+4. Improve clarity - replace vague terms with specific ones (e.g., "nice" → "professional", "good" → "high-quality")
+5. Ensure proper structure: Subject → Action → Object → Context
+6. Use action-oriented, strong verbs (create, generate, design, build)
+7. Format appropriately for ${targetModel} best practices
+8. Maintain appropriate length (not too short, not too long - typically 10-100 words for most prompts)
+9. Ensure proper punctuation and capitalization
+10. Remove any nonsensical or contradictory elements
+11. Improve sentence flow and readability
+12. Use concise, direct language
+
+INTENT PRESERVATION (CRITICAL - DO NOT VIOLATE):
+- DO NOT add creative details (colors, backgrounds, styles, moods) not in the original prompt
+- DO NOT add new subjects, objects, or concepts not mentioned
+- DO NOT change the core meaning or intent
+- ONLY improve grammar, structure, clarity, and formatting
+- Preserve the user's original simplicity level - if they wanted simple, keep it simple
+- If the original is vague, improve clarity WITHOUT adding unsolicited details
+
+VALIDATION:
+- If the prompt is completely nonsensical (random characters, gibberish, no coherent meaning), set isValid to false and explain why
+- If the prompt is too vague to be useful (single word, extremely generic), set isValid to true but add a validationMessage warning
+- If the prompt contains contradictions, resolve them by keeping the most logical interpretation
+- If the prompt is inappropriate (harmful, illegal, unethical), set isValid to false and explain why
+
+QUALITY SCORING:
+- Rate the optimized prompt quality from 0-100
+- Consider: clarity, specificity, structure, grammar, and adherence to prompt engineering best practices
+- Higher scores for well-structured, clear, specific prompts
+- Lower scores for vague, poorly structured prompts
+
+Return your response as valid JSON in this exact format:
+{
+  "optimizedPrompt": "the optimized prompt text here",
+  "isValid": true or false,
+  "validationMessage": "optional message if prompt has issues or warnings",
+  "improvements": ["Fixed grammar errors", "Removed filler words", "Improved clarity", ...],
+  "qualityScore": 85
+}
+
+IMPORTANT:
+- Return ONLY valid JSON, no other text
+- The optimizedPrompt must be the final, ready-to-use prompt
+- List specific improvements made (e.g., "Fixed grammar: added missing articles", "Removed redundancy: 'very very' → removed")
+- If isValid is false, validationMessage is required
+- qualityScore must be a number between 0-100`;
+
+  try {
+    const response = await generateContent(systemPrompt);
+    
+    // Try to parse JSON from response
+    let cleanedResponse = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    // Sometimes the response might have text before/after JSON, try to extract it
+    const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanedResponse = jsonMatch[0];
+    }
+    
+    const parsed = JSON.parse(cleanedResponse) as QuickOptimizeResult;
+    
+    // Validate the response structure
+    if (!parsed.optimizedPrompt || typeof parsed.optimizedPrompt !== 'string') {
+      throw new Error('Invalid response: missing optimizedPrompt');
+    }
+    
+    if (typeof parsed.isValid !== 'boolean') {
+      parsed.isValid = true; // Default to valid if not specified
+    }
+    
+    if (!Array.isArray(parsed.improvements)) {
+      parsed.improvements = [];
+    }
+    
+    if (typeof parsed.qualityScore !== 'number') {
+      parsed.qualityScore = 70; // Default score
+    }
+    
+    // Ensure qualityScore is within bounds
+    parsed.qualityScore = Math.max(0, Math.min(100, parsed.qualityScore));
+    
+    return parsed;
+  } catch (error: any) {
+    logger.error(error, 'Failed to quick optimize with AI');
+    throw new Error(`AI optimization failed: ${error.message || 'Unknown error'}`);
+  }
+}
+
 // Initialize on module load
 initializeGemini();
 

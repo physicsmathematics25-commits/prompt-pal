@@ -3,6 +3,97 @@
  * Analyzes prompts to identify missing elements, grammar issues, and structure problems
  */
 
+/**
+ * Pre-validation result for prompts
+ */
+export interface PromptValidationResult {
+  isValid: boolean;
+  isAcceptable: boolean; // true if prompt can be optimized, false if completely unacceptable
+  validationMessage?: string;
+  issues: string[];
+}
+
+/**
+ * Pre-validate prompt before optimization
+ * Checks for obviously unacceptable, nonsensical, or inappropriate prompts
+ */
+export function preValidatePrompt(prompt: string): PromptValidationResult {
+  const trimmed = prompt.trim();
+  const issues: string[] = [];
+  let isValid = true;
+  let isAcceptable = true;
+  let validationMessage: string | undefined;
+
+  // Check for empty or too short
+  if (trimmed.length === 0) {
+    isValid = false;
+    isAcceptable = false;
+    issues.push('Prompt is empty');
+    validationMessage = 'Prompt cannot be empty. Please provide a valid prompt.';
+    return { isValid, isAcceptable, validationMessage, issues };
+  }
+
+  if (trimmed.length < 2) {
+    isValid = true; // Can still optimize
+    isAcceptable = true;
+    issues.push('Prompt is extremely short');
+    validationMessage = 'Prompt is very short. Consider adding more details for better results.';
+  }
+
+  // Check for random characters or gibberish (more than 50% non-alphanumeric)
+  const alphanumericCount = (trimmed.match(/[a-zA-Z0-9]/g) || []).length;
+  const nonAlphanumericCount = trimmed.length - alphanumericCount;
+  if (trimmed.length > 10 && nonAlphanumericCount / trimmed.length > 0.5) {
+    isValid = false;
+    isAcceptable = false;
+    issues.push('Prompt appears to be gibberish or random characters');
+    validationMessage = 'Prompt contains too many non-alphanumeric characters and appears nonsensical.';
+    return { isValid, isAcceptable, validationMessage, issues };
+  }
+
+  // Check for obvious nonsense patterns
+  const nonsensePatterns = [
+    /^[^a-zA-Z0-9\s]+$/, // Only special characters
+    /(.)\1{10,}/, // Same character repeated 10+ times
+    /[a-z]{20,}/i, // Very long word (likely gibberish)
+  ];
+
+  for (const pattern of nonsensePatterns) {
+    if (pattern.test(trimmed)) {
+      isValid = false;
+      isAcceptable = false;
+      issues.push('Prompt matches nonsense pattern');
+      validationMessage = 'Prompt appears to be nonsensical or invalid.';
+      return { isValid, isAcceptable, validationMessage, issues };
+    }
+  }
+
+  // Check for inappropriate content (basic check - can be enhanced)
+  const inappropriatePatterns = [
+    /\b(hack|exploit|illegal|harmful|violent|explicit)\b/i,
+  ];
+  
+  // Note: This is a basic check. In production, you might want more sophisticated content filtering
+  // For now, we'll just flag it but still allow optimization (let AI handle it)
+  for (const pattern of inappropriatePatterns) {
+    if (pattern.test(trimmed)) {
+      issues.push('Potentially inappropriate content detected');
+      // Don't block, but note it
+    }
+  }
+
+  // Check if prompt is too vague (single word, very generic)
+  const wordCount = trimmed.split(/\s+/).filter((word) => word.length > 0).length;
+  if (wordCount === 1 && trimmed.length < 20) {
+    isValid = true;
+    isAcceptable = true;
+    issues.push('Prompt is very vague');
+    validationMessage = 'Prompt is quite vague. Consider adding more details for better optimization results.';
+  }
+
+  return { isValid, isAcceptable, validationMessage, issues };
+}
+
 export interface PromptAnalysisResult {
   completenessScore: number;
   missingElements: string[];

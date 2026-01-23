@@ -18,8 +18,17 @@ const router = Router();
  * @swagger
  * /prompt-optimizer/quick-optimize:
  *   post:
- *     summary: Quick optimize a prompt (grammar + structure only)
- *     description: Fast optimization that only fixes grammar and improves structure. Preserves user intent without adding creative details.
+ *     summary: Quick optimize a prompt using AI (grammar, structure, and clarity improvements)
+ *     description: |
+ *       AI-powered optimization that follows standard prompt engineering best practices:
+ *       - Fixes grammar and spelling errors
+ *       - Removes unnecessary filler words and redundancy
+ *       - Improves clarity and specificity
+ *       - Optimizes structure and formatting
+ *       - Formats for target model best practices
+ *       - Preserves user intent (no creative details added)
+ *       - Validates prompt quality and provides warnings for vague prompts
+ *       Falls back to rule-based optimization if AI is unavailable.
  *     tags: [Prompt Optimizer]
  *     security:
  *       - cookieAuth: []
@@ -36,15 +45,15 @@ const router = Router();
  *             properties:
  *               originalPrompt:
  *                 type: string
- *                 minLength: 5
+ *                 minLength: 1
  *                 maxLength: 5000
  *                 description: The original prompt to optimize
- *                 example: "create image of cat"
+ *                 example: "draw me a very very nice cat image please"
  *               targetModel:
  *                 type: string
  *                 minLength: 1
  *                 maxLength: 100
- *                 description: Target AI model (e.g., DALL-E 3, GPT-4, Claude)
+ *                 description: Target AI model (e.g., DALL-E 3, GPT-4, Claude, Midjourney)
  *                 example: "DALL-E 3"
  *               mediaType:
  *                 type: string
@@ -72,8 +81,10 @@ const router = Router();
  *                           type: string
  *                         originalPrompt:
  *                           type: string
+ *                           example: "draw me a very very nice cat image please"
  *                         optimizedPrompt:
  *                           type: string
+ *                           example: "Create a cat image."
  *                         targetModel:
  *                           type: string
  *                         mediaType:
@@ -86,18 +97,44 @@ const router = Router();
  *                           properties:
  *                             before:
  *                               type: number
+ *                               description: Quality score before optimization (0-100)
  *                             after:
  *                               type: number
+ *                               description: Quality score after optimization (0-100)
  *                             improvements:
  *                               type: array
  *                               items:
  *                                 type: string
+ *                               example: ["Fixed grammar errors", "Removed filler words", "Improved clarity"]
  *                             intentPreserved:
  *                               type: boolean
  *                         metadata:
  *                           type: object
+ *                           properties:
+ *                             usedAI:
+ *                               type: boolean
+ *                               description: Whether AI was used for optimization
+ *                             validationMessage:
+ *                               type: string
+ *                               description: Warning message if prompt is vague or has issues
  *                         analysis:
  *                           type: object
+ *                         note:
+ *                           type: string
+ *                           description: Information message or validation warning
+ *       400:
+ *         description: Bad request - prompt is invalid, nonsensical, or unacceptable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: "Prompt is not acceptable for optimization."
  *                         improvements:
  *                           type: array
  *                           items:

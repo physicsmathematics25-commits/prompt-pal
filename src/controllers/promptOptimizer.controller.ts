@@ -13,7 +13,7 @@ import {
 import AppError from '../utils/appError.util.js';
 
 /**
- * Quick optimization - grammar and structure fixes only
+ * Quick optimization - AI-powered optimization following prompt engineering best practices
  */
 export const quickOptimize = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -38,10 +38,16 @@ export const quickOptimize = catchAsync(
           mediaType: optimization.mediaType,
           optimizationType: optimization.optimizationType,
           qualityScore: optimization.qualityScore,
-          metadata: optimization.metadata,
+          metadata: {
+            ...optimization.metadata,
+            validationMessage: (optimization.metadata as any)?.validationMessage,
+            usedAI: (optimization.metadata as any)?.usedAI ?? false,
+          },
           analysis: optimization.analysis,
           improvements: optimization.qualityScore?.improvements || [],
-          note: 'Quick optimization preserves your original intent. Use premium optimization for more detailed prompts.',
+          note: (optimization.metadata as any)?.validationMessage 
+            ? (optimization.metadata as any).validationMessage 
+            : 'Quick optimization improves grammar, structure, and clarity while preserving your original intent. Use premium optimization for more detailed prompts.',
         },
       },
     });

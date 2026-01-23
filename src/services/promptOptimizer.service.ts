@@ -6,12 +6,13 @@ import {
   BuildPromptInput,
   OptimizationHistoryParams,
 } from '../validation/promptOptimizer.schema.js';
-import { analyzePrompt } from '../utils/promptAnalyzer.util.js';
+import { analyzePrompt, preValidatePrompt } from '../utils/promptAnalyzer.util.js';
 import {
   generateQuestions,
   parseFreeFormInput,
   buildOptimizedPrompt,
   isGeminiAvailable,
+  quickOptimizeWithAI,
 } from '../utils/gemini.util.js';
 import { validateIntentPreservation } from '../utils/intentPreservation.util.js';
 import { calculateComprehensiveQualityScore } from '../utils/qualityScoring.util.js';
@@ -27,70 +28,155 @@ import {
 import logger from '../config/logger.config.js';
 
 /**
- * Quick optimization - grammar and structure fixes only
+ * Quick optimization - AI-powered optimization following prompt engineering best practices
+ * Falls back to rule-based optimization if AI is unavailable
  */
 export const quickOptimize = async (
   userId: string,
   input: QuickOptimizeInput,
 ) => {
   const { originalPrompt, targetModel, mediaType } = input;
+  const promptText = originalPrompt as string;
 
-  // Analyze the prompt
-  const analysis = analyzePrompt(originalPrompt as string, mediaType);
-
-  // Apply quick fixes (grammar and structure only)
-  let optimizedPrompt: string = originalPrompt as string;
-
-  // Fix common grammar issues
-  if (analysis.grammarFixed) {
-    // Improve informal language first
-    optimizedPrompt = optimizedPrompt.replace(
-      /\b(draw|make)\s+me\s+/gi,
-      'create ',
-    );
-
-    // Fix missing articles (be more careful - only fix obvious cases)
-    // Only fix if we see "create image of cat" -> "create an image of a cat"
-    optimizedPrompt = optimizedPrompt.replace(
-      /\b(create|generate|make)\s+(image|picture|photo)\s+of\s+(cat|dog|bird|animal)\b/gi,
-      (match: string, verb: string, img: string, animal: string) => {
-        return `${verb} an ${img} of a ${animal}`;
-      },
+  // Pre-validate the prompt
+  const preValidation = preValidatePrompt(promptText);
+  
+  // If prompt is completely unacceptable, throw error
+  if (!preValidation.isAcceptable) {
+    throw new AppError(
+      preValidation.validationMessage || 'Prompt is not acceptable for optimization.',
+      400,
     );
   }
 
-  // Basic structure improvement
-  if (optimizedPrompt.length > 0 && !/[.!?]$/.test(optimizedPrompt.trim())) {
-    optimizedPrompt = optimizedPrompt.trim() + '.';
+  // Analyze the original prompt for comparison
+  const originalAnalysis = analyzePrompt(promptText, mediaType);
+
+  let optimizedPrompt: string = promptText;
+  let aiOptimizationResult: any = null;
+  let usedAI = false;
+  let validationMessage: string | undefined = preValidation.validationMessage;
+  let improvements: string[] = [];
+
+  // Try AI optimization first if available
+  if (isGeminiAvailable()) {
+    try {
+      aiOptimizationResult = await quickOptimizeWithAI(
+        promptText,
+        targetModel as string,
+        mediaType,
+      );
+      
+      optimizedPrompt = aiOptimizationResult.optimizedPrompt;
+      usedAI = true;
+      improvements = aiOptimizationResult.improvements || [];
+      
+      // Use AI's validation message if provided
+      if (aiOptimizationResult.validationMessage) {
+        validationMessage = aiOptimizationResult.validationMessage;
+      }
+
+      // If AI says prompt is invalid, throw error
+      if (!aiOptimizationResult.isValid) {
+        throw new AppError(
+          aiOptimizationResult.validationMessage || 'Prompt is not valid for optimization.',
+          400,
+        );
+      }
+
+      logger.info('Quick optimization completed using AI', {
+        userId,
+        originalLength: promptText.length,
+        optimizedLength: optimizedPrompt.length,
+        qualityScore: aiOptimizationResult.qualityScore,
+      });
+    } catch (error: any) {
+      // Log error but fall back to rule-based optimization
+      logger.warn(error, 'AI optimization failed, falling back to rule-based optimization');
+      
+      // If it's a validation error (not a technical error), throw it
+      if (error instanceof AppError) {
+        throw error;
+      }
+      
+      // Otherwise, continue with fallback
+    }
   }
 
-  // Capitalize first letter
-  optimizedPrompt =
-    optimizedPrompt.charAt(0).toUpperCase() + optimizedPrompt.slice(1);
+  // Fallback to rule-based optimization if AI failed or unavailable
+  if (!usedAI) {
+    // Apply quick fixes (grammar and structure only)
+    if (originalAnalysis.grammarFixed) {
+      // Improve informal language first
+      optimizedPrompt = optimizedPrompt.replace(
+        /\b(draw|make)\s+me\s+/gi,
+        'create ',
+      );
+
+      // Fix missing articles (be more careful - only fix obvious cases)
+      optimizedPrompt = optimizedPrompt.replace(
+        /\b(create|generate|make)\s+(image|picture|photo)\s+of\s+(cat|dog|bird|animal)\b/gi,
+        (match: string, verb: string, img: string, animal: string) => {
+          return `${verb} an ${img} of a ${animal}`;
+        },
+      );
+      
+      improvements.push('Fixed informal language');
+      improvements.push('Added missing articles');
+    }
+
+    // Basic structure improvement
+    if (optimizedPrompt.length > 0 && !/[.!?]$/.test(optimizedPrompt.trim())) {
+      optimizedPrompt = optimizedPrompt.trim() + '.';
+      improvements.push('Added proper punctuation');
+    }
+
+    // Capitalize first letter
+    optimizedPrompt =
+      optimizedPrompt.charAt(0).toUpperCase() + optimizedPrompt.slice(1);
+    
+    if (improvements.length === 0) {
+      improvements.push('Applied basic formatting');
+    }
+
+    logger.info('Quick optimization completed using rule-based fallback', {
+      userId,
+      originalLength: promptText.length,
+      optimizedLength: optimizedPrompt.length,
+    });
+  }
+
+  // Analyze the optimized prompt
+  const optimizedAnalysis = analyzePrompt(optimizedPrompt, mediaType);
 
   // Calculate quality scores
-  const afterAnalysis = analyzePrompt(optimizedPrompt as string, mediaType);
+  const beforeScore = Math.round(
+    (originalAnalysis.clarityScore +
+      originalAnalysis.specificityScore +
+      originalAnalysis.structureScore) /
+      3,
+  );
+
+  const afterScore = usedAI && aiOptimizationResult
+    ? aiOptimizationResult.qualityScore
+    : Math.round(
+        (optimizedAnalysis.clarityScore +
+          optimizedAnalysis.specificityScore +
+          optimizedAnalysis.structureScore) /
+          3,
+      );
+
   const qualityScore = {
-    before: Math.round(
-      (analysis.clarityScore +
-        analysis.specificityScore +
-        analysis.structureScore) /
-        3,
-    ),
-    after: Math.round(
-      (afterAnalysis.clarityScore +
-        afterAnalysis.specificityScore +
-        afterAnalysis.structureScore) /
-        3,
-    ),
-    improvements: analysis.issues.map((issue) => `Fixed: ${issue}`),
+    before: beforeScore,
+    after: afterScore,
+    improvements: improvements.length > 0 ? improvements : originalAnalysis.issues.map((issue) => `Fixed: ${issue}`),
     intentPreserved: true,
   };
 
   // Create optimization record
   const optimization = await PromptOptimization.create({
     user: userId,
-    originalPrompt,
+    originalPrompt: promptText,
     optimizedPrompt,
     targetModel,
     mediaType,
@@ -100,28 +186,30 @@ export const quickOptimize = async (
     qualityScore,
     metadata: {
       wordCount: {
-        before: analysis.wordCount,
-        after: afterAnalysis.wordCount,
+        before: originalAnalysis.wordCount,
+        after: optimizedAnalysis.wordCount,
       },
       clarityScore: {
-        before: analysis.clarityScore,
-        after: afterAnalysis.clarityScore,
+        before: originalAnalysis.clarityScore,
+        after: optimizedAnalysis.clarityScore,
       },
       specificityScore: {
-        before: analysis.specificityScore,
-        after: afterAnalysis.specificityScore,
+        before: originalAnalysis.specificityScore,
+        after: optimizedAnalysis.specificityScore,
       },
       structureScore: {
-        before: analysis.structureScore,
-        after: afterAnalysis.structureScore,
+        before: originalAnalysis.structureScore,
+        after: optimizedAnalysis.structureScore,
       },
-      completenessScore: analysis.completenessScore,
+      completenessScore: originalAnalysis.completenessScore,
+      usedAI,
+      validationMessage,
     },
     analysis: {
-      completenessScore: analysis.completenessScore,
-      missingElements: analysis.missingElements,
-      grammarFixed: analysis.grammarFixed,
-      structureImproved: analysis.structureImproved,
+      completenessScore: originalAnalysis.completenessScore,
+      missingElements: originalAnalysis.missingElements,
+      grammarFixed: originalAnalysis.grammarFixed,
+      structureImproved: originalAnalysis.structureImproved,
     },
   });
 

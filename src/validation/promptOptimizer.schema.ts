@@ -16,7 +16,7 @@ const objectIdSchema = z.string().refine(
 export const quickOptimizeSchema = z.object({
   originalPrompt: z
     .string()
-    .min(5, 'Prompt must be at least 5 characters.')
+    .min(1, 'Prompt cannot be empty.')
     .max(5000, 'Prompt cannot exceed 5000 characters.')
     .transform(trimAndSanitize),
   targetModel: z
