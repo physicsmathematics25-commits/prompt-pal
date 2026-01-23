@@ -161,7 +161,7 @@ const promptOptimizationSchemaDefinition: any = {
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'User is required.'],
-    index: true,
+    // Index is defined below as compound index with createdAt
   },
   originalPrompt: {
     type: String,
