@@ -84,12 +84,15 @@ export const quickOptimize = async (
         );
       }
 
-      logger.info('Quick optimization completed using AI', {
-        userId,
-        originalLength: promptText.length,
-        optimizedLength: optimizedPrompt.length,
-        qualityScore: aiOptimizationResult.qualityScore,
-      });
+      logger.info(
+        {
+          userId,
+          originalLength: promptText.length,
+          optimizedLength: optimizedPrompt.length,
+          qualityScore: aiOptimizationResult.qualityScore,
+        },
+        'Quick optimization completed using AI',
+      );
     } catch (error: any) {
       // Log error but fall back to rule-based optimization
       logger.warn(error, 'AI optimization failed, falling back to rule-based optimization');
@@ -139,11 +142,14 @@ export const quickOptimize = async (
       improvements.push('Applied basic formatting');
     }
 
-    logger.info('Quick optimization completed using rule-based fallback', {
-      userId,
-      originalLength: promptText.length,
-      optimizedLength: optimizedPrompt.length,
-    });
+    logger.info(
+      {
+        userId,
+        originalLength: promptText.length,
+        optimizedLength: optimizedPrompt.length,
+      },
+      'Quick optimization completed using rule-based fallback',
+    );
   }
 
   // Analyze the optimized prompt
