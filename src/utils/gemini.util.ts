@@ -437,6 +437,124 @@ function getMediaSpecificPromptGuidance(
 }
 
 /**
+ * Parse JSON response from AI with robust error handling
+ * Handles malformed JSON, unescaped quotes, and other common issues
+ */
+function parseJSONResponse(response: string): any {
+  // Step 1: Remove markdown code blocks
+  let cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  
+  // Step 2: Extract JSON object (handle text before/after)
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    cleaned = jsonMatch[0];
+  }
+  
+  // Step 3: Try direct parsing first
+  try {
+    return JSON.parse(cleaned);
+  } catch (firstError) {
+    // Step 4: Try to repair common JSON issues
+    try {
+      // Fix unescaped quotes in string values using a more robust approach
+      let fixed = cleaned;
+      
+      // Find all string values and fix unescaped quotes
+      // This regex matches: "key": "value" where value may contain unescaped quotes
+      fixed = fixed.replace(/"([^"]+)":\s*"([^"]*)"([,}\]]|$)/g, (match, key, value, ending) => {
+        // If value contains unescaped quotes, escape them
+        if (value.includes('"') && !value.includes('\\"')) {
+          const escapedValue = value.replace(/"/g, '\\"');
+          return `"${key}": "${escapedValue}"${ending}`;
+        }
+        return match;
+      });
+      
+      // Try parsing the fixed version
+      return JSON.parse(fixed);
+    } catch (secondError) {
+      // Step 5: Manual extraction as last resort
+      try {
+        const result: any = {};
+        
+        // Extract optimizedPrompt - handle escaped and unescaped quotes
+        const optimizedPromptRegex = /"optimizedPrompt"\s*:\s*"((?:[^"\\]|\\.)*)"/;
+        const optimizedMatch = cleaned.match(optimizedPromptRegex);
+        if (optimizedMatch) {
+          result.optimizedPrompt = optimizedMatch[1]
+            .replace(/\\"/g, '"')
+            .replace(/\\n/g, '\n')
+            .replace(/\\\\/g, '\\');
+        } else {
+          // Fallback: try to find it even with unescaped quotes
+          const fallbackMatch = cleaned.match(/"optimizedPrompt"\s*:\s*"([^"]*(?:"[^,}\]]*)*)"/);
+          if (fallbackMatch) {
+            result.optimizedPrompt = fallbackMatch[1].replace(/"/g, '');
+          } else {
+            throw new Error('Could not extract optimizedPrompt');
+          }
+        }
+        
+        // Extract isValid
+        const isValidMatch = cleaned.match(/"isValid"\s*:\s*(true|false)/);
+        result.isValid = isValidMatch ? isValidMatch[1] === 'true' : true;
+        
+        // Extract validationMessage
+        const validationRegex = /"validationMessage"\s*:\s*"((?:[^"\\]|\\.)*)"/;
+        const validationMatch = cleaned.match(validationRegex);
+        if (validationMatch) {
+          result.validationMessage = validationMatch[1]
+            .replace(/\\"/g, '"')
+            .replace(/\\n/g, '\n')
+            .replace(/\\\\/g, '\\');
+        }
+        
+        // Extract improvements array
+        const improvementsRegex = /"improvements"\s*:\s*\[(.*?)\]/s;
+        const improvementsMatch = cleaned.match(improvementsRegex);
+        if (improvementsMatch) {
+          try {
+            // Try to parse as JSON array
+            const arrayStr = '[' + improvementsMatch[1] + ']';
+            result.improvements = JSON.parse(arrayStr);
+          } catch {
+            // Fallback: extract strings manually
+            const stringMatches = improvementsMatch[1].match(/"([^"]+)"/g);
+            result.improvements = stringMatches 
+              ? stringMatches.map((m: string) => m.replace(/^"|"$/g, '').replace(/\\"/g, '"'))
+              : [];
+          }
+        } else {
+          result.improvements = [];
+        }
+        
+        // Extract qualityScore
+        const qualityScoreMatch = cleaned.match(/"qualityScore"\s*:\s*(\d+)/);
+        result.qualityScore = qualityScoreMatch ? parseInt(qualityScoreMatch[1], 10) : 70;
+        
+        // Validate we have at least optimizedPrompt
+        if (!result.optimizedPrompt) {
+          throw new Error('Could not extract required fields');
+        }
+        
+        return result;
+      } catch (thirdError) {
+        logger.error(
+          {
+            firstError: firstError instanceof Error ? firstError.message : String(firstError),
+            secondError: secondError instanceof Error ? secondError.message : String(secondError),
+            thirdError: thirdError instanceof Error ? thirdError.message : String(thirdError),
+            responsePreview: response.substring(0, 500), // Log first 500 chars
+          },
+          'Failed to parse JSON response after all attempts',
+        );
+        throw new Error('Failed to parse AI response as valid JSON');
+      }
+    }
+  }
+}
+
+/**
  * Get advanced prompt engineering techniques guidance based on media type
  */
 function getAdvancedTechniquesGuidance(mediaType: 'text' | 'image' | 'video' | 'audio'): string {
@@ -574,8 +692,15 @@ Return your response as valid JSON in this exact format:
   "qualityScore": 85
 }
 
+CRITICAL JSON FORMATTING RULES:
+- Return ONLY valid JSON, no other text before or after
+- ALL quotes inside string values MUST be escaped with backslash: \\"
+- ALL newlines inside string values MUST be escaped: \\n
+- ALL backslashes MUST be escaped: \\\\
+- The JSON must be valid and parseable
+- Do NOT include any explanatory text outside the JSON
+
 IMPORTANT:
-- Return ONLY valid JSON, no other text
 - The optimizedPrompt must be the final, ready-to-use prompt
 - List specific improvements made (e.g., "Fixed grammar: added missing articles", "Removed redundancy: 'very very' → removed")
 - If isValid is false, validationMessage is required
@@ -584,16 +709,8 @@ IMPORTANT:
   try {
     const response = await generateContent(systemPrompt);
     
-    // Try to parse JSON from response
-    let cleanedResponse = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
-    // Sometimes the response might have text before/after JSON, try to extract it
-    const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      cleanedResponse = jsonMatch[0];
-    }
-    
-    const parsed = JSON.parse(cleanedResponse) as QuickOptimizeResult;
+    // Parse JSON with robust error handling
+    const parsed = parseJSONResponse(response) as QuickOptimizeResult;
     
     // Validate the response structure
     if (!parsed.optimizedPrompt || typeof parsed.optimizedPrompt !== 'string') {
