@@ -18,6 +18,8 @@ import adminRoutes from './routes/admin.routes.js';
 import promptRoutes from './routes/prompt.routes.js';
 import promptOptimizerRoutes from './routes/promptOptimizer.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
+import blogRoutes from './routes/blog.routes.js';
+import blogAdminRoutes from './routes/blogAdmin.routes.js';
 
 const app: Express = express();
 
@@ -79,8 +81,10 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/user', userRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/admin/analytics', analyticsRoutes);
+app.use('/api/v1/admin/blogs', blogAdminRoutes);
 app.use('/api/v1/prompts', promptRoutes);
 app.use('/api/v1/prompt-optimizer', promptOptimizerRoutes);
+app.use('/api/v1/blogs', blogRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({

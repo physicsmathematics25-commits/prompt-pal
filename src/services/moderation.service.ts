@@ -1,5 +1,6 @@
 import Prompt from '../models/prompt.model.js';
 import Comment from '../models/comment.model.js';
+import BlogPost from '../models/blog.model.js';
 import ContentFlag from '../models/contentFlag.model.js';
 import AppError from '../utils/appError.util.js';
 import logger from '../config/logger.config.js';
@@ -286,10 +287,16 @@ export const flagContent = async (
   const { contentType, contentId, reason, description } = input;
 
   // Validate content exists
-  const content =
-    contentType === 'prompt'
-      ? await Prompt.findById(contentId)
-      : await Comment.findById(contentId);
+  let content: any;
+  if (contentType === 'prompt') {
+    content = await Prompt.findById(contentId);
+  } else if (contentType === 'comment') {
+    content = await Comment.findById(contentId);
+  } else if (contentType === 'blog') {
+    content = await BlogPost.findById(contentId);
+  } else {
+    throw new AppError('Invalid content type.', 400);
+  }
 
   if (!content) {
     throw new AppError(`${contentType} not found.`, 404);
@@ -323,8 +330,13 @@ export const flagContent = async (
       $inc: { flaggedCount: 1 },
       $set: { lastFlaggedAt: new Date() },
     });
-  } else {
+  } else if (contentType === 'comment') {
     await Comment.findByIdAndUpdate(contentId, {
+      $inc: { flaggedCount: 1 },
+      $set: { lastFlaggedAt: new Date() },
+    });
+  } else if (contentType === 'blog') {
+    await BlogPost.findByIdAndUpdate(contentId, {
       $inc: { flaggedCount: 1 },
       $set: { lastFlaggedAt: new Date() },
     });

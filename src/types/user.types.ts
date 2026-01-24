@@ -1,4 +1,4 @@
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type UserRole = 'user' | 'admin' | 'superadmin';
 export type UserStatus = 'pending' | 'approved' | 'blocked';
@@ -30,6 +30,9 @@ export interface IUser {
   passwordResetToken?: string;
   passwordResetExpires?: Date;
   googleId?: string;
+  
+  // Blog bookmarks
+  bookmarkedBlogs?: Types.ObjectId[];
 }
 
 export interface PublicUserProfile {

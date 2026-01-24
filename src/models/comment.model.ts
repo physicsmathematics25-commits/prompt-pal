@@ -76,10 +76,26 @@ import mongoose, { Schema, SchemaDefinition } from 'mongoose';
 import { ICommentDocument } from '../types/comment.types.js';
 
 const commentSchemaDefinition: SchemaDefinition<ICommentDocument> = {
+  // Polymorphic reference - can be either Prompt or BlogPost
+  contentType: {
+    type: String,
+    required: [true, 'Content type is required.'],
+    enum: {
+      values: ['prompt', 'blog'],
+      message: 'Content type must be either prompt or blog',
+    },
+    index: true,
+  },
+  contentId: {
+    type: Schema.Types.ObjectId,
+    required: [true, 'Content ID is required.'],
+    refPath: 'contentType',
+    index: true,
+  },
+  // Legacy field for backward compatibility
   prompt: {
     type: Schema.Types.ObjectId,
     ref: 'Prompt',
-    required: [true, 'Prompt is required.'],
     index: true,
   },
   user: {
@@ -147,16 +163,31 @@ const commentSchema = new Schema<ICommentDocument>(commentSchemaDefinition, {
   toObject: { virtuals: true },
 });
 
+// Pre-save hook to maintain backward compatibility
+commentSchema.pre('save', function (next) {
+  // If using legacy prompt field, set contentType and contentId
+  if (this.prompt && !this.contentId) {
+    this.contentType = 'prompt';
+    this.contentId = this.prompt;
+  }
+  // If using contentType='prompt', also set legacy prompt field
+  if (this.contentType === 'prompt' && this.contentId) {
+    this.prompt = this.contentId;
+  }
+  next();
+});
+
 // Indexes for efficient queries
-commentSchema.index({ prompt: 1, createdAt: -1 });
+commentSchema.index({ contentType: 1, contentId: 1, createdAt: -1 });
+commentSchema.index({ prompt: 1, createdAt: -1 }); // Legacy index
 commentSchema.index({ user: 1 });
-commentSchema.index({ prompt: 1, likes: 1 });
+commentSchema.index({ contentId: 1, likes: 1 });
 
 // Moderation indexes
 commentSchema.index({ isHidden: 1, isDeleted: 1, createdAt: -1 });
 commentSchema.index({ flaggedCount: -1, lastFlaggedAt: -1 });
 commentSchema.index({ deletedBy: 1 });
-commentSchema.index({ prompt: 1, isHidden: 1, isDeleted: 1, createdAt: -1 });
+commentSchema.index({ contentId: 1, isHidden: 1, isDeleted: 1, createdAt: -1 });
 
 const Comment = mongoose.model<ICommentDocument>('Comment', commentSchema);
 

@@ -18,6 +18,7 @@ export const createComment = catchAsync(
     const { promptId } = req.params as GetCommentsParams;
     const comment = await commentService.createComment(
       promptId,
+      'prompt',
       req.user.id,
       req.body,
     );

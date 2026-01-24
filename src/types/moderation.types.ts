@@ -8,7 +8,7 @@ export type ModerationReason =
   | 'harassment'
   | 'other';
 
-export type ContentType = 'prompt' | 'comment';
+export type ContentType = 'prompt' | 'comment' | 'blog';
 
 export type FlagStatus = 'pending' | 'reviewed' | 'resolved' | 'dismissed';
 

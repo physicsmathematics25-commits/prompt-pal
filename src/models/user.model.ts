@@ -195,6 +195,13 @@ const userSchema = new Schema<IUserDocument>(
       type: Date,
       select: false,
     },
+    // Blog bookmarks
+    bookmarkedBlogs: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'BlogPost',
+      },
+    ],
   },
   {
     timestamps: true,

@@ -1,8 +1,14 @@
 import { Document, Types } from 'mongoose';
 import { ModerationReason } from './moderation.types.js';
 
+export type ContentType = 'prompt' | 'blog';
+
 export interface ICommentDocument extends Document {
-  prompt: Types.ObjectId;
+  // Polymorphic reference
+  contentType: ContentType;
+  contentId: Types.ObjectId;
+  // Legacy field for backward compatibility
+  prompt?: Types.ObjectId;
   user: Types.ObjectId;
   text: string;
   likes: Types.ObjectId[];

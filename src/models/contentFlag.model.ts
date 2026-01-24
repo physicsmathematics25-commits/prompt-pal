@@ -16,7 +16,7 @@
  *           example: 507f1f77bcf86cd799439011
  *         contentType:
  *           type: string
- *           enum: [prompt, comment]
+ *           enum: [prompt, comment, blog]
  *           description: Type of content being flagged
  *           example: prompt
  *         contentId:
@@ -82,8 +82,8 @@ const contentFlagSchemaDefinition: SchemaDefinition<IContentFlagDocument> = {
   contentType: {
     type: String,
     enum: {
-      values: ['prompt', 'comment'] as ContentType[],
-      message: 'Content type must be: prompt or comment',
+      values: ['prompt', 'comment', 'blog'] as ContentType[],
+      message: 'Content type must be: prompt, comment, or blog',
     },
     required: [true, 'Content type is required.'],
     index: true,

@@ -1,25 +1,41 @@
 import Comment from '../models/comment.model.js';
 import Prompt from '../models/prompt.model.js';
+import BlogPost from '../models/blog.model.js';
 import AppError from '../utils/appError.util.js';
 import {
   CreateCommentInput,
   UpdateCommentInput,
   GetCommentsQuery,
 } from '../validation/comment.schema.js';
+import { ContentType } from '../types/comment.types.js';
 
+/**
+ * Create a comment on any content (prompt or blog)
+ */
 export const createComment = async (
-  promptId: string,
+  contentId: string,
+  contentType: ContentType,
   userId: string,
   input: CreateCommentInput,
 ) => {
-  // Verify prompt exists
-  const prompt = await Prompt.findById(promptId);
-  if (!prompt) {
-    throw new AppError('Prompt not found.', 404);
+  // Verify content exists
+  if (contentType === 'prompt') {
+    const prompt = await Prompt.findById(contentId);
+    if (!prompt || prompt.isDeleted) {
+      throw new AppError('Prompt not found.', 404);
+    }
+  } else if (contentType === 'blog') {
+    const blog = await BlogPost.findById(contentId);
+    if (!blog || blog.isDeleted) {
+      throw new AppError('Blog post not found.', 404);
+    }
   }
 
   const comment = await Comment.create({
-    prompt: promptId,
+    contentType,
+    contentId,
+    // Maintain backward compatibility
+    prompt: contentType === 'prompt' ? contentId : undefined,
     user: userId,
     text: input.text,
   });
@@ -32,21 +48,33 @@ export const createComment = async (
   return comment;
 };
 
-export const getCommentsByPrompt = async (
-  promptId: string,
+/**
+ * Get comments by content (prompt or blog)
+ */
+export const getCommentsByContent = async (
+  contentId: string,
+  contentType: ContentType,
   query: GetCommentsQuery,
 ) => {
-  // Verify prompt exists
-  const prompt = await Prompt.findById(promptId);
-  if (!prompt) {
-    throw new AppError('Prompt not found.', 404);
+  // Verify content exists
+  if (contentType === 'prompt') {
+    const prompt = await Prompt.findById(contentId);
+    if (!prompt) {
+      throw new AppError('Prompt not found.', 404);
+    }
+  } else if (contentType === 'blog') {
+    const blog = await BlogPost.findById(contentId);
+    if (!blog) {
+      throw new AppError('Blog post not found.', 404);
+    }
   }
 
   const { page = 1, limit = 20 } = query;
   const skip = (page - 1) * limit;
 
   const comments = await Comment.find({
-    prompt: promptId,
+    contentType,
+    contentId,
     isDeleted: false,
     isHidden: false,
   })
@@ -59,7 +87,8 @@ export const getCommentsByPrompt = async (
     .limit(limit);
 
   const total = await Comment.countDocuments({
-    prompt: promptId,
+    contentType,
+    contentId,
     isDeleted: false,
     isHidden: false,
   });
@@ -71,6 +100,14 @@ export const getCommentsByPrompt = async (
     totalPages: Math.ceil(total / limit),
     limit,
   };
+};
+
+// Backward compatibility wrapper
+export const getCommentsByPrompt = async (
+  promptId: string,
+  query: GetCommentsQuery,
+) => {
+  return getCommentsByContent(promptId, 'prompt', query);
 };
 
 export const getCommentById = async (commentId: string) => {
