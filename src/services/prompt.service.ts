@@ -13,12 +13,43 @@ export const createPrompt = async (
   const promptData: any = {
     ...input,
     user: userId,
-    sampleOutput: imageUrl || input.sampleOutput,
   };
 
-  if (imageUrl) {
-    promptData.mediaType = 'image';
-    promptData.sampleOutput = imageUrl;
+  // Handle multiple outputs if provided
+  if (input.outputs && input.outputs.length > 0) {
+    promptData.outputs = input.outputs;
+    
+    // Find first image output to use as main imageUrl/sampleOutput
+    const firstImageOutput = input.outputs.find((o: any) => o.type === 'image' && o.content);
+    if (firstImageOutput) {
+      promptData.sampleOutput = firstImageOutput.content;
+      if (!promptData.mediaType) {
+        promptData.mediaType = 'image';
+      }
+    } else {
+      // Use first output as sampleOutput for backward compatibility
+      promptData.sampleOutput = input.outputs[0].content;
+      // Set mediaType from first output if not already set
+      if (!promptData.mediaType && input.outputs[0].type !== 'url' && input.outputs[0].type !== 'text') {
+        promptData.mediaType = input.outputs[0].type;
+      }
+    }
+    
+    // If imageUrl is provided (from legacy upload), use it for the first image output
+    if (imageUrl && promptData.mediaType === 'image') {
+      const firstImageIndex = input.outputs.findIndex((o: any) => o.type === 'image');
+      if (firstImageIndex !== -1) {
+        promptData.outputs[firstImageIndex].content = imageUrl;
+        promptData.sampleOutput = imageUrl;
+      }
+    }
+  } else {
+    // Legacy single output support
+    promptData.sampleOutput = imageUrl || input.sampleOutput;
+    if (imageUrl) {
+      promptData.mediaType = 'image';
+      promptData.sampleOutput = imageUrl;
+    }
   }
 
   const prompt = await Prompt.create(promptData);
@@ -147,6 +178,7 @@ export const updatePrompt = async (
   userId: string,
   input: UpdatePromptInput,
   userRole: string,
+  imageUrl?: string,
 ) => {
   const prompt = await Prompt.findById(promptId);
 
@@ -164,9 +196,49 @@ export const updatePrompt = async (
     );
   }
 
-  Object.keys(input).forEach((key) => {
-    if (input[key as keyof UpdatePromptInput] !== undefined) {
-      (prompt as any)[key] = input[key as keyof UpdatePromptInput];
+  const promptData: any = { ...input };
+
+  // Handle multiple outputs if provided
+  if (input.outputs && Array.isArray(input.outputs) && input.outputs.length > 0) {
+    promptData.outputs = input.outputs;
+    
+    // Find first image output to use as main imageUrl/sampleOutput
+    const firstImageOutput = input.outputs.find((o: any) => o.type === 'image' && o.content);
+    if (firstImageOutput) {
+      promptData.sampleOutput = firstImageOutput.content;
+      if (!promptData.mediaType) {
+        promptData.mediaType = 'image';
+      }
+    } else {
+      // Use first output as sampleOutput for backward compatibility
+      promptData.sampleOutput = input.outputs[0].content;
+      // Set mediaType from first output if not already set
+      if (!promptData.mediaType && input.outputs[0].type !== 'url' && input.outputs[0].type !== 'text') {
+        promptData.mediaType = input.outputs[0].type;
+      }
+    }
+    
+    // If imageUrl is provided (from legacy upload), use it for the first image output
+    if (imageUrl && promptData.mediaType === 'image') {
+      const firstImageIndex = input.outputs.findIndex((o: any) => o.type === 'image');
+      if (firstImageIndex !== -1) {
+        promptData.outputs[firstImageIndex].content = imageUrl;
+        promptData.sampleOutput = imageUrl;
+      }
+    }
+  } else {
+    // Legacy single output support
+    if (imageUrl) {
+      promptData.sampleOutput = imageUrl;
+      if (!promptData.mediaType) {
+        promptData.mediaType = 'image';
+      }
+    }
+  }
+
+  Object.keys(promptData).forEach((key) => {
+    if (promptData[key] !== undefined) {
+      (prompt as any)[key] = promptData[key];
     }
   });
 

@@ -205,11 +205,49 @@ export const applyOptimization = catchAsync(
     }
 
     const { id } = req.params as GetOptimizationParams;
-    const { title, description, tags, isPublic } = req.body as ApplyOptimizationInput;
+    const { title, description, tags, isPublic, sampleOutput, outputs } = req.body as ApplyOptimizationInput & { outputs?: any[] };
+    
+    // Handle multiple outputs if provided
+    let imageUrl: string | undefined;
+    if (outputs && Array.isArray(outputs) && outputs.length > 0) {
+      // Process outputs array and handle file uploads
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+      const outputFiles = files?.outputFiles || [];
+      
+      // Map output files to their indices
+      const outputIndices = req.body.outputIndices 
+        ? (Array.isArray(req.body.outputIndices) ? req.body.outputIndices : [req.body.outputIndices])
+        : [];
+      
+      // Update outputs with file URLs
+      const processedOutputs = outputs.map((output: any, index: number) => {
+        if (output.type === 'image') {
+          // Find the corresponding file for this output
+          const fileIndex = outputIndices.findIndex((idx: string) => parseInt(idx) === index);
+          if (fileIndex !== -1 && outputFiles[fileIndex]) {
+            return {
+              ...output,
+              content: outputFiles[fileIndex].path,
+            };
+          }
+        }
+        return output;
+      });
+      
+      req.body.outputs = processedOutputs;
+    } else {
+      // Legacy single output support
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+      const imageFile = files?.image?.[0] || (req as any).file;
+      if (imageFile) {
+        imageUrl = imageFile.path;
+      }
+    }
+
     const prompt = await promptOptimizerService.applyOptimization(
       req.user.id,
       id,
-      { title, description, tags, isPublic },
+      { title, description, tags, isPublic, sampleOutput, imageUrl, outputs: req.body.outputs },
     );
 
     res.status(201).json({

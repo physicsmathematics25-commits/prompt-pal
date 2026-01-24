@@ -28,6 +28,41 @@ export const createPromptSchema = z.object({
     .min(10, 'Prompt text must be at least 10 characters.')
     .transform(trimAndSanitize),
   sampleOutput: z.string().min(1, 'Sample output is required.').optional(),
+  outputs: z.preprocess(
+    (val) => {
+      // Handle FormData array notation or already parsed arrays
+      if (!val) return undefined;
+      if (Array.isArray(val)) {
+        // Filter out undefined/null entries
+        return val.filter(o => o && typeof o === 'object');
+      }
+      if (typeof val === 'object') {
+        // Convert object with numeric keys to array
+        const keys = Object.keys(val).sort((a, b) => parseInt(a) - parseInt(b));
+        const arr: any[] = [];
+        keys.forEach(key => {
+          const index = parseInt(key);
+          if (!isNaN(index) && val[key] && typeof val[key] === 'object') {
+            arr[index] = val[key];
+          }
+        });
+        return arr.filter(o => o !== undefined);
+      }
+      return undefined;
+    },
+    z.array(z.discriminatedUnion('type', [
+      z.object({
+        type: z.literal('image'),
+        content: z.string(), // Can be empty for image (file uploaded separately)
+        title: z.string().optional(),
+      }),
+      z.object({
+        type: z.enum(['text', 'video', 'audio', 'url']),
+        content: z.string().min(1, 'Output content is required.'),
+        title: z.string().optional(),
+      }),
+    ])).optional()
+  ),
   mediaType: z.enum(['text', 'image', 'video', 'audio']),
   aiModel: z
     .string()
@@ -78,6 +113,41 @@ export const updatePromptSchema = z.object({
     .transform(trimAndSanitize)
     .optional(),
   sampleOutput: z.string().min(1, 'Sample output is required.').optional(),
+  outputs: z.preprocess(
+    (val) => {
+      // Handle FormData array notation or already parsed arrays
+      if (!val) return undefined;
+      if (Array.isArray(val)) {
+        // Filter out undefined/null entries
+        return val.filter(o => o && typeof o === 'object');
+      }
+      if (typeof val === 'object') {
+        // Convert object with numeric keys to array
+        const keys = Object.keys(val).sort((a, b) => parseInt(a) - parseInt(b));
+        const arr: any[] = [];
+        keys.forEach(key => {
+          const index = parseInt(key);
+          if (!isNaN(index) && val[key] && typeof val[key] === 'object') {
+            arr[index] = val[key];
+          }
+        });
+        return arr.filter(o => o !== undefined);
+      }
+      return undefined;
+    },
+    z.array(z.discriminatedUnion('type', [
+      z.object({
+        type: z.literal('image'),
+        content: z.string(), // Can be empty for image (file uploaded separately)
+        title: z.string().optional(),
+      }),
+      z.object({
+        type: z.enum(['text', 'video', 'audio', 'url']),
+        content: z.string().min(1, 'Output content is required.'),
+        title: z.string().optional(),
+      }),
+    ])).optional()
+  ),
   mediaType: z.enum(['text', 'image', 'video', 'audio']).optional(),
   aiModel: z
     .string()

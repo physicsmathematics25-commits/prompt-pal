@@ -45,3 +45,13 @@ export const upload = multer({
     fileSize: 5 * 1024 * 1024,
   },
 });
+
+// For multiple file uploads (outputs)
+export const uploadMultiple = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB for output files
+    files: 10, // Max 10 files
+  },
+});

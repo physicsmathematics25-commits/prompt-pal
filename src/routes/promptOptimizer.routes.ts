@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { protect } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
+import { upload } from '../utils/fileUpload.util.js';
 import * as promptOptimizerController from '../controllers/promptOptimizer.controller.js';
 import {
   quickOptimizeSchema,
@@ -710,7 +711,59 @@ router.post(
   '/:id/apply',
   protect,
   validate(getOptimizationSchema, 'params'),
-  validate(applyOptimizationSchema, 'body'),
+  upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'outputFiles', maxCount: 10 },
+  ]), // Handle image upload if present (parses FormData into req.body)
+  // Parse FormData arrays before validation
+  (req: any, res: any, next: any) => {
+    // Parse outputs array from FormData notation
+    if (req.body && typeof req.body === 'object') {
+      const outputs: any = {};
+      Object.keys(req.body).forEach(key => {
+        const match = key.match(/^outputs\[(\d+)\]\[(\w+)\]$/);
+        if (match) {
+          const index = parseInt(match[1]);
+          const field = match[2];
+          if (!outputs[index]) {
+            outputs[index] = {};
+          }
+          outputs[index][field] = req.body[key];
+          delete req.body[key];
+        }
+      });
+      
+      // Convert outputs object to array
+      if (Object.keys(outputs).length > 0) {
+        const outputsArray: any[] = [];
+        Object.keys(outputs).sort((a, b) => parseInt(a) - parseInt(b)).forEach(key => {
+          outputsArray[parseInt(key)] = outputs[key];
+        });
+        req.body.outputs = outputsArray.filter(o => o !== undefined);
+      }
+      
+      // Parse outputIndices array from FormData notation (outputIndices[])
+      if (req.body.outputIndices) {
+        if (typeof req.body.outputIndices === 'string') {
+          req.body.outputIndices = [req.body.outputIndices];
+        } else if (Array.isArray(req.body.outputIndices)) {
+          // Already an array
+        } else if (typeof req.body.outputIndices === 'object') {
+          // Convert object with numeric keys to array
+          const indices: any[] = [];
+          Object.keys(req.body.outputIndices).sort((a, b) => parseInt(a) - parseInt(b)).forEach(key => {
+            const index = parseInt(key);
+            if (!isNaN(index)) {
+              indices[index] = req.body.outputIndices[key];
+            }
+          });
+          req.body.outputIndices = indices.filter(i => i !== undefined);
+        }
+      }
+    }
+    next();
+  },
+  validate(applyOptimizationSchema, 'body'), // Validate after multer parses FormData
   promptOptimizerController.applyOptimization,
 );
 

@@ -7,26 +7,164 @@ import {
 } from '../validation/prompt.schema.js';
 import AppError from '../utils/appError.util.js';
 
+// Helper function to parse FormData array notation into proper objects
+const parseFormDataArrays = (body: any) => {
+  const parsed = { ...body };
+  
+  // Parse outputs array if present in FormData notation
+  if (body.outputs && typeof body.outputs === 'object' && !Array.isArray(body.outputs)) {
+    // FormData sends outputs as { '0': { type: '...', content: '...' }, '1': {...} }
+    const outputsArray: any[] = [];
+    const keys = Object.keys(body.outputs).sort((a, b) => parseInt(a) - parseInt(b));
+    keys.forEach(key => {
+      const index = parseInt(key);
+      if (!isNaN(index)) {
+        outputsArray[index] = body.outputs[key];
+      }
+    });
+    parsed.outputs = outputsArray.filter(o => o !== undefined);
+  }
+  
+  return parsed;
+};
+
 export const createPrompt = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       throw new AppError('You must be logged in to create a prompt.', 401);
     }
 
-    const { mediaType } = req.body;
+    // Parse FormData arrays before processing
+    req.body = parseFormDataArrays(req.body);
+    
+    const { mediaType, outputs } = req.body;
     let imageUrl: string | undefined;
 
-    if (mediaType === 'image') {
-      if (!req.file) {
-        throw new AppError('Image file is required for image media type.', 400);
+    // Handle multiple outputs if provided
+    if (outputs && Array.isArray(outputs) && outputs.length > 0) {
+      // Process outputs array and handle file uploads
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+      const outputFiles = files?.outputFiles || [];
+      const legacyImageFile = files?.image?.[0] || (req as any).file;
+      
+      // Map output files to their indices
+      const outputIndices = req.body.outputIndices 
+        ? (Array.isArray(req.body.outputIndices) ? req.body.outputIndices : [req.body.outputIndices])
+        : [];
+      
+      // Count image outputs that need files
+      const imageOutputs = outputs.filter((o: any) => o.type === 'image' && (!o.content || o.content.trim() === ''));
+      
+      // Validate that we have files for all image outputs
+      if (imageOutputs.length > 0 && outputFiles.length === 0 && !legacyImageFile) {
+        throw new AppError('Image file is required for image outputs.', 400);
       }
-      imageUrl = req.file.path;
+      
+      // Update outputs with file URLs
+      const processedOutputs = outputs.map((output: any, index: number) => {
+        if (output.type === 'image' && (!output.content || output.content.trim() === '')) {
+          // Find the corresponding file for this output
+          // outputIndices contains the output index for each file
+          const fileIndex = outputIndices.findIndex((idx: string) => parseInt(idx) === index);
+          if (fileIndex !== -1 && outputFiles[fileIndex]) {
+            const fileUrl = outputFiles[fileIndex].path;
+            // Use first image output as the main imageUrl for backward compatibility
+            if (!imageUrl) {
+              imageUrl = fileUrl;
+            }
+            return {
+              ...output,
+              content: fileUrl,
+            };
+          } else {
+            // Image output but no file found - try to map by order
+            const imageOutputIndex = outputs.slice(0, index).filter((o: any) => o.type === 'image' && (!o.content || o.content.trim() === '')).length;
+            if (imageOutputIndex < outputFiles.length) {
+              const fileUrl = outputFiles[imageOutputIndex].path;
+              if (!imageUrl) {
+                imageUrl = fileUrl;
+              }
+              return {
+                ...output,
+                content: fileUrl,
+              };
+            }
+            // Still no file - this is an error
+            throw new AppError(`Image file is required for image output at index ${index}.`, 400);
+          }
+        }
+        return output;
+      });
+      
+      req.body.outputs = processedOutputs;
+      
+      // If mediaType is 'image', ensure we have an image
+      if (mediaType === 'image') {
+        // First, try to get imageUrl from processed outputs
+        const firstImageOutput = processedOutputs.find((o: any) => o.type === 'image' && o.content);
+        if (firstImageOutput) {
+          imageUrl = firstImageOutput.content;
+        } else if (legacyImageFile) {
+          // Fallback to legacy image file
+          imageUrl = legacyImageFile.path;
+          // If first output is image type but has no content, use legacy image
+          if (processedOutputs[0]?.type === 'image' && !processedOutputs[0].content) {
+            processedOutputs[0].content = imageUrl;
+            req.body.outputs = processedOutputs;
+          }
+        } else {
+          // Check if we have image outputs that need files
+          const hasImageOutputs = processedOutputs.some((o: any) => o.type === 'image');
+          if (hasImageOutputs) {
+            // We have image outputs - check if files were uploaded
+            if (outputFiles.length === 0) {
+              throw new AppError('Image file is required for image media type.', 400);
+            }
+            
+            // If we have files but they weren't mapped correctly, try to map them by order
+            const imageOutputsWithoutContent = processedOutputs.filter((o: any) => o.type === 'image' && !o.content);
+            if (imageOutputsWithoutContent.length > 0 && outputFiles.length > 0) {
+              // Map files to image outputs by order (first file to first image output, etc.)
+              let fileIndex = 0;
+              processedOutputs.forEach((o: any) => {
+                if (o.type === 'image' && !o.content && fileIndex < outputFiles.length) {
+                  o.content = outputFiles[fileIndex].path;
+                  if (!imageUrl) {
+                    imageUrl = o.content;
+                  }
+                  fileIndex++;
+                }
+              });
+              req.body.outputs = processedOutputs;
+            }
+            
+            // Final check: if we still don't have imageUrl, it's an error
+            if (!imageUrl) {
+              throw new AppError('Image file is required for image media type.', 400);
+            }
+          } else {
+            // No image outputs but mediaType is 'image' - need legacy image
+            throw new AppError('Image file is required for image media type.', 400);
+          }
+        }
+      }
     } else {
-      if (!req.body.sampleOutput) {
-        throw new AppError(
-          'Sample output is required for non-image media types.',
-          400,
-        );
+      // Legacy single output support
+      if (mediaType === 'image') {
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+        // Check both 'image' field and legacy single file
+        const imageFile = files?.image?.[0] || (req as any).file;
+        if (!imageFile) {
+          throw new AppError('Image file is required for image media type.', 400);
+        }
+        imageUrl = imageFile.path;
+      } else {
+        if (!req.body.sampleOutput) {
+          throw new AppError(
+            'Sample output is required for non-image media types.',
+            400,
+          );
+        }
       }
     }
 
@@ -87,11 +225,112 @@ export const updatePrompt = catchAsync(
     }
 
     const { id } = req.params as GetPromptParams;
+    const { mediaType, outputs } = req.body;
+    let imageUrl: string | undefined;
+
+    // Handle multiple outputs if provided
+    if (outputs && Array.isArray(outputs) && outputs.length > 0) {
+      // Process outputs array and handle file uploads
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+      const outputFiles = files?.outputFiles || [];
+      const legacyImageFile = files?.image?.[0] || (req as any).file;
+      
+      // Map output files to their indices
+      const outputIndices = req.body.outputIndices 
+        ? (Array.isArray(req.body.outputIndices) ? req.body.outputIndices : [req.body.outputIndices])
+        : [];
+      
+      // Count image outputs that need files
+      const imageOutputs = outputs.filter((o: any) => o.type === 'image' && (!o.content || o.content.trim() === ''));
+      
+      // Validate that we have files for all image outputs
+      if (imageOutputs.length > 0 && outputFiles.length === 0 && !legacyImageFile) {
+        throw new AppError('Image file is required for image outputs.', 400);
+      }
+      
+      // Update outputs with file URLs
+      const processedOutputs = outputs.map((output: any, index: number) => {
+        if (output.type === 'image' && (!output.content || output.content.trim() === '')) {
+          // Find the corresponding file for this output
+          const fileIndex = outputIndices.findIndex((idx: string) => parseInt(idx) === index);
+          if (fileIndex !== -1 && outputFiles[fileIndex]) {
+            const fileUrl = outputFiles[fileIndex].path;
+            // Use first image output as the main imageUrl for backward compatibility
+            if (!imageUrl) {
+              imageUrl = fileUrl;
+            }
+            return {
+              ...output,
+              content: fileUrl,
+            };
+          } else {
+            // Image output but no file found - try to map by order
+            const imageOutputIndex = outputs.slice(0, index).filter((o: any) => o.type === 'image' && (!o.content || o.content.trim() === '')).length;
+            if (imageOutputIndex < outputFiles.length) {
+              const fileUrl = outputFiles[imageOutputIndex].path;
+              if (!imageUrl) {
+                imageUrl = fileUrl;
+              }
+              return {
+                ...output,
+                content: fileUrl,
+              };
+            }
+            // Still no file - this is an error
+            throw new AppError(`Image file is required for image output at index ${index}.`, 400);
+          }
+        }
+        return output;
+      });
+      
+      req.body.outputs = processedOutputs;
+      
+      // If mediaType is 'image', ensure we have an image
+      if (mediaType === 'image') {
+        // First, try to get imageUrl from processed outputs
+        const firstImageOutput = processedOutputs.find((o: any) => o.type === 'image' && o.content);
+        if (firstImageOutput) {
+          imageUrl = firstImageOutput.content;
+        } else if (legacyImageFile) {
+          // Fallback to legacy image file
+          imageUrl = legacyImageFile.path;
+          // If first output is image type but has no content, use legacy image
+          if (processedOutputs[0]?.type === 'image' && !processedOutputs[0].content) {
+            processedOutputs[0].content = imageUrl;
+            req.body.outputs = processedOutputs;
+          }
+        } else {
+          // Check if we have image outputs that need files
+          const hasImageOutputs = processedOutputs.some((o: any) => o.type === 'image');
+          if (hasImageOutputs) {
+            // We have image outputs - check if files were uploaded
+            if (outputFiles.length === 0) {
+              throw new AppError('Image file is required for image media type.', 400);
+            }
+          } else {
+            // No image outputs but mediaType is 'image' - need legacy image
+            throw new AppError('Image file is required for image media type.', 400);
+          }
+        }
+      }
+    } else {
+      // Legacy single output support
+      if (mediaType === 'image') {
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+        // Check both 'image' field and legacy single file
+        const imageFile = files?.image?.[0] || (req as any).file;
+        if (imageFile) {
+          imageUrl = imageFile.path;
+        }
+      }
+    }
+
     const prompt = await promptService.updatePrompt(
       id,
       req.user.id,
       req.body,
       req.user.role,
+      imageUrl,
     );
 
     res.status(200).json({

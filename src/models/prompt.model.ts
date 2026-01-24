@@ -145,6 +145,21 @@ const promptSchemaDefinition: SchemaDefinition<IPromptDocument> = {
     type: String,
     required: [true, 'Sample output is required.'],
   },
+  outputs: [{
+    type: {
+      type: String,
+      enum: ['text', 'image', 'video', 'audio', 'url'],
+      required: true,
+    },
+    content: {
+      type: String,
+      required: true,
+    },
+    title: {
+      type: String,
+      trim: true,
+    },
+  }],
   mediaType: {
     type: String,
     enum: {

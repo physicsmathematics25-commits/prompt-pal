@@ -685,9 +685,9 @@ export const deleteOptimization = async (
 export const applyOptimization = async (
   userId: string,
   optimizationId: string,
-  input: Omit<ApplyOptimizationInput, 'optimizationId'>,
+  input: Omit<ApplyOptimizationInput, 'optimizationId'> & { imageUrl?: string; outputs?: any[] },
 ) => {
-  const { title, description, tags, isPublic } = input;
+  const { title, description, tags, isPublic, sampleOutput, imageUrl, outputs } = input;
 
   // Get the optimization
   const optimization = await PromptOptimization.findOne({
@@ -704,12 +704,36 @@ export const applyOptimization = async (
     throw new AppError('Optimized prompt not available.', 400);
   }
 
+  // Handle multiple outputs if provided, otherwise use legacy validation
+  if (outputs && outputs.length > 0) {
+    // Validate outputs
+    for (const output of outputs) {
+      if (!output.content || !output.content.trim()) {
+        throw new AppError('All outputs must have content.', 400);
+      }
+    }
+  } else {
+    // Legacy validation
+    if (optimization.mediaType === 'image') {
+      if (!imageUrl) {
+        throw new AppError('Image is required for image media type.', 400);
+      }
+    } else {
+      if (!sampleOutput || !sampleOutput.trim()) {
+        throw new AppError('Sample output is required for non-image media types.', 400);
+      }
+    }
+  }
+
   // Create prompt from optimization
   const promptData: CreatePromptInput = {
     title,
     description,
     promptText: optimization.optimizedPrompt,
-    sampleOutput: '', // User will need to add this later
+    sampleOutput: outputs && outputs.length > 0 
+      ? outputs[0].content 
+      : (optimization.mediaType === 'image' ? imageUrl! : sampleOutput!),
+    outputs: outputs && outputs.length > 0 ? outputs : undefined,
     mediaType: optimization.mediaType,
     aiModel: optimization.targetModel,
     tags: tags || [],
