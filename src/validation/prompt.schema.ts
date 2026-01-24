@@ -38,12 +38,13 @@ export const createPromptSchema = z.object({
       }
       if (typeof val === 'object') {
         // Convert object with numeric keys to array
-        const keys = Object.keys(val).sort((a, b) => parseInt(a) - parseInt(b));
+        const valObj = val as Record<string, any>;
+        const keys = Object.keys(valObj).sort((a, b) => parseInt(a) - parseInt(b));
         const arr: any[] = [];
         keys.forEach(key => {
           const index = parseInt(key);
-          if (!isNaN(index) && val[key] && typeof val[key] === 'object') {
-            arr[index] = val[key];
+          if (!isNaN(index) && valObj[key] && typeof valObj[key] === 'object') {
+            arr[index] = valObj[key];
           }
         });
         return arr.filter(o => o !== undefined);
@@ -123,12 +124,13 @@ export const updatePromptSchema = z.object({
       }
       if (typeof val === 'object') {
         // Convert object with numeric keys to array
-        const keys = Object.keys(val).sort((a, b) => parseInt(a) - parseInt(b));
+        const valObj = val as Record<string, any>;
+        const keys = Object.keys(valObj).sort((a, b) => parseInt(a) - parseInt(b));
         const arr: any[] = [];
         keys.forEach(key => {
           const index = parseInt(key);
-          if (!isNaN(index) && val[key] && typeof val[key] === 'object') {
-            arr[index] = val[key];
+          if (!isNaN(index) && valObj[key] && typeof valObj[key] === 'object') {
+            arr[index] = valObj[key];
           }
         });
         return arr.filter(o => o !== undefined);

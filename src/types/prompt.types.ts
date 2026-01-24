@@ -9,6 +9,11 @@ export interface IPromptDocument extends Document {
   description?: string;
   promptText: string;
   sampleOutput: string;
+  outputs?: Array<{
+    type: 'text' | 'image' | 'video' | 'audio' | 'url';
+    content: string;
+    title?: string;
+  }>;
   mediaType: MediaType;
   aiModel: string;
   tags: string[];
