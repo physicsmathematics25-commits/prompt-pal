@@ -71,8 +71,8 @@ const router = Router();
  *                 type: string
  *                 format: password
  *                 minLength: 8
- *                 description: Must contain 1 uppercase, 1 lowercase, 1 number, and 1 special character
- *                 example: Password123!
+ *                 description: Must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number (minimum 8 characters)
+ *                 example: Password123
  *               passwordConfirm:
  *                 type: string
  *                 format: password
@@ -264,7 +264,7 @@ router.post(
  *                 type: string
  *                 format: password
  *                 minLength: 8
- *                 description: New password (must contain 1 uppercase, 1 lowercase, 1 number, and 1 special character)
+ *                 description: New password (must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number, minimum 8 characters)
  *                 example: NewPassword123!
  *               passwordConfirm:
  *                 type: string

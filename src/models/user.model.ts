@@ -121,11 +121,11 @@ const userSchema = new Schema<IUserDocument>(
             minLowercase: 1,
             minUppercase: 1,
             minNumbers: 1,
-            minSymbols: 1,
+            minSymbols: 0,
           });
         },
         message:
-          'Password must be at least 8 chars, with 1 uppercase, 1 lowercase, 1 number, and 1 symbol.',
+          'Password must be at least 8 characters, with 1 uppercase letter, 1 lowercase letter, and 1 number.',
       },
       select: false,
     },

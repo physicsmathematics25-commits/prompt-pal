@@ -39,8 +39,8 @@ export const registerUserSchema = z
       .min(1, 'Password is required')
       .min(8, 'Password must be at least 8 characters')
       .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/,
-        'Password must contain 1 uppercase, 1 lowercase, 1 number, and 1 special character',
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/,
+        'Password must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number',
       ),
     passwordConfirm: z.string().min(1, 'Password confirmation is required'),
   })
@@ -78,8 +78,8 @@ export const resetPasswordSchema = z
       .min(1, 'Password is required')
       .min(8, 'Password must be at least 8 characters')
       .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/,
-        'Password must contain 1 uppercase, 1 lowercase, 1 number, and 1 special character',
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/,
+        'Password must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number',
       ),
     passwordConfirm: z.string().min(1, 'Password confirmation is required'),
   })
@@ -100,8 +100,8 @@ export const updatePasswordSchema = z
       .min(1, 'New password is required')
       .min(8, 'Password must be at least 8 characters')
       .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/,
-        'Password must contain 1 uppercase, 1 lowercase, 1 number, and 1 special character',
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/,
+        'Password must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number',
       ),
     passwordConfirm: z.string().min(1, 'Password confirmation is required'),
   })
