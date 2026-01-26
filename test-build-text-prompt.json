@@ -1,0 +1,45 @@
+{
+  "originalPrompt": "write me a paragraph about the battle of adwa",
+  "targetModel": "GPT-4",
+  "mediaType": "text",
+  "answers": {
+    "role": {
+      "type": "option",
+      "value": "neutral_observer"
+    },
+    "purpose": {
+      "type": "option",
+      "value": "informative_summary"
+    },
+    "audience": {
+      "type": "option",
+      "value": "general_public"
+    },
+    "tone": {
+      "type": "option",
+      "value": "neutral"
+    },
+    "style": {
+      "type": "option",
+      "value": "factual_concise"
+    },
+    "length": {
+      "type": "option",
+      "value": "medium_moderate_detail"
+    },
+    "focus": {
+      "type": "option",
+      "value": "long_term_significance"
+    },
+    "exclusions": {
+      "type": "option",
+      "value": "none"
+    },
+    "language_complexity": {
+      "type": "option",
+      "value": "standard_educated"
+    }
+  },
+  "additionalDetails": "explain the cause and effect of the battle and some imporant figures of the time"
+}
+

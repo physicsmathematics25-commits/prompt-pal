@@ -383,7 +383,7 @@ export async function buildOptimizedPrompt(
   // Extract what user actually specified to reinforce intent preservation
   const userSpecified = extractUserSpecifiedInfo(originalPrompt, answers, additionalDetails);
 
-  const prompt = `You are a prompt optimization expert. Build an optimized prompt from the following information.
+  const prompt = `You are a prompt optimization expert. Build a premium optimized prompt from the following information using advanced prompt engineering techniques.
 
 Original prompt: "${originalPrompt}"
 User Answers: ${JSON.stringify(answers)}
@@ -393,17 +393,28 @@ Target Model: ${targetModel}
 USER SPECIFIED DETAILS (ONLY USE THESE):
 ${userSpecified}
 
+ADVANCED PROMPT ENGINEERING TECHNIQUES (Apply these to create a high-quality prompt):
+1. **Action-Oriented Language**: Start with strong action verbs (Act as, Generate, Create, Write, Design, Build)
+2. **Role-Playing**: Explicitly define roles when appropriate (e.g., "Act as a historian", "Act as a developer")
+3. **Output Format Specification**: Clearly state the expected output format (e.g., "Generate a single paragraph", "Create an image")
+4. **Strong Verbs**: Use powerful, specific verbs (Generate, Prioritize, Maintain, Ensure, Specify)
+5. **Remove Redundancy**: Consolidate repetitive phrases and remove unnecessary words
+6. **Better Structure**: Organize as Subject → Action → Object → Context → Constraints
+7. **Specific Constraints**: Use clear prioritization (e.g., "Prioritize X over Y", "Focus on A rather than B")
+8. **Clear Instructions**: Make instructions direct, actionable, and unambiguous
+9. **Grammar & Clarity**: Fix all grammar errors, improve clarity, use proper punctuation
+10. **Concise Language**: Remove filler words, be direct and specific
+
 CRITICAL RULES - INTENT PRESERVATION:
 1. ONLY use information the user provided (original prompt + answers + additional details)
 2. DO NOT add creative details (colors, backgrounds, styles, moods) NOT in the "USER SPECIFIED DETAILS" above
-3. DO NOT assume preferences - if user didn't specify a color, don't add one
+3. DO NOT assume preferences - if user didn't specify something, don't add it
 4. DO NOT add backgrounds, settings, or environments not mentioned by the user
 5. DO NOT add moods, emotions, or atmospheres not specified
 6. Maintain the user's original intent and simplicity level - if they wanted simple, keep it simple
 7. Structure the prompt for ${targetModel} best practices
 8. Combine all user inputs intelligently
-9. Fix any grammar issues
-10. Improve structure and clarity WITHOUT adding unsolicited details
+9. Apply advanced prompt engineering techniques while preserving intent
 
 VALIDATION CHECKLIST:
 - Every color mentioned must be in USER SPECIFIED DETAILS
@@ -411,7 +422,16 @@ VALIDATION CHECKLIST:
 - Every background mentioned must be in USER SPECIFIED DETAILS
 - Every mood mentioned must be in USER SPECIFIED DETAILS
 
-Return ONLY the optimized prompt text, nothing else. No explanations, no JSON, just the prompt.`;
+OUTPUT REQUIREMENTS:
+- Use action-oriented language (start with verbs like "Act as", "Generate", "Create")
+- Specify output format clearly
+- Use strong, specific verbs throughout
+- Remove redundancy and improve clarity
+- Structure the prompt professionally
+- Make it concise but complete
+- Ensure proper punctuation and grammar
+
+Return ONLY the optimized prompt text, nothing else. No explanations, no JSON, just the final optimized prompt ready to use.`;
 
   const response = await generateContent(prompt);
   return response.trim();
