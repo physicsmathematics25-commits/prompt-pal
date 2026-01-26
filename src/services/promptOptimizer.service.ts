@@ -279,12 +279,15 @@ export const analyzePromptForQuestions = async (
   input: AnalyzePromptInput,
 ) => {
   const { originalPrompt, targetModel, mediaType } = input;
+  
+  // Ensure originalPrompt is a string
+  const promptString = String(originalPrompt);
 
   // Analyze the prompt
-  const analysis = analyzePrompt(originalPrompt as string, mediaType);
+  const analysis = analyzePrompt(promptString, mediaType);
 
   // Generate quick optimized version using AI (required)
-  let quickOptimized: string = originalPrompt as string;
+  let quickOptimized: string = promptString;
   
   if (!isGeminiAvailable()) {
     logger.error('Gemini is not available. AI optimization is required for premium questions.');
@@ -297,8 +300,8 @@ export const analyzePromptForQuestions = async (
   try {
     // Use AI to generate quick optimized version
     const quickOptimizeResult = await quickOptimizeWithAI(
-      originalPrompt as string,
-      targetModel as string,
+      promptString,
+      String(targetModel),
       mediaType,
     );
     quickOptimized = quickOptimizeResult.optimizedPrompt;
@@ -306,7 +309,7 @@ export const analyzePromptForQuestions = async (
     logger.info(
       {
         userId,
-        originalLength: originalPrompt.length,
+        originalLength: promptString.length,
         quickOptimizedLength: quickOptimized.length,
       },
       'Generated quick optimized version using AI',
@@ -315,7 +318,7 @@ export const analyzePromptForQuestions = async (
     logger.error(
       {
         userId,
-        originalPrompt: originalPrompt.substring(0, 100),
+        originalPrompt: promptString.substring(0, 100),
         errorMessage: error.message,
       },
       'Failed to generate quick optimized version, using original',
@@ -325,7 +328,7 @@ export const analyzePromptForQuestions = async (
   }
 
   // Check cache first
-  const cacheKey = generateQuestionsCacheKey(originalPrompt as string, mediaType, targetModel as string);
+  const cacheKey = generateQuestionsCacheKey(promptString, mediaType, String(targetModel));
   let questionsData = questionCache.get<any>(cacheKey);
 
   // Generate questions using Gemini (required - no template fallback)
@@ -342,14 +345,14 @@ export const analyzePromptForQuestions = async (
       logger.info(
         {
           userId,
-          originalPrompt: originalPrompt.substring(0, 100),
+          originalPrompt: promptString.substring(0, 100),
           targetModel,
           mediaType,
         },
         'Generating premium questions with AI',
       );
 
-      questionsData = await generateQuestions(originalPrompt as string, mediaType, targetModel as string);
+      questionsData = await generateQuestions(promptString, mediaType, String(targetModel));
       
       logger.info(
         {
@@ -365,7 +368,7 @@ export const analyzePromptForQuestions = async (
       logger.error(
         {
           userId,
-          originalPrompt: originalPrompt.substring(0, 100),
+          originalPrompt: promptString.substring(0, 100),
           errorMessage: error.message,
           errorStack: error.stack,
         },
